@@ -8,15 +8,15 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
 )
 
-find_package(lvr REQUIRED)
+find_package(LVR REQUIRED)
 
-add_definitions(${lvr_DEFINITIONS})
+add_definitions(${LVR_DEFINITIONS})
 
 find_path(OPENGL_INC gl.h /usr/include/GL)
 include_directories(${OPENGL_INC})
 
-#find_package(PCL 1.0 REQUIRED)
-#include_directories(SYSTEM ${PCL_INCLUDE_DIRS})
+find_package(PCL 1.8 REQUIRED)
+include_directories(SYSTEM ${PCL_INCLUDE_DIRS})
 
 ### compile with c++11
 if (CMAKE_VERSION VERSION_LESS "3.1")
@@ -30,7 +30,8 @@ endif ()
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  ${lvr_INCLUDE_DIRS}
+  ${LVR_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 )
 
 link_directories(
@@ -44,7 +45,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
   CATKIN_DEPENDS roscpp sensor_msgs mesh_msgs 
   INCLUDE_DIRS include
-  DEPENDS lvr
+  DEPENDS LVR
   LIBRARIES lvr_ros_conversions
 )
 
@@ -54,7 +55,7 @@ add_library(lvr_ros_conversions
 
 target_link_libraries(lvr_ros_conversions
   ${catkin_LIBRARIES}
-  ${lvr_LIBRARIES}
+  ${LVR_LIBRARIES}
 )
 
 add_executable(lvr_ros_reconstruction
@@ -64,7 +65,8 @@ add_executable(lvr_ros_reconstruction
 
 target_link_libraries(lvr_ros_reconstruction
   ${catkin_LIBRARIES}
-  ${lvr_LIBRARIES}
+  ${LVR_LIBRARIES}
+  ${PCL_LIBRARIES}
 )
 
 add_dependencies(lvr_ros_reconstruction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
