@@ -2,11 +2,14 @@ cmake_minimum_required(VERSION 2.4.6)
 
 project(lvr_ros)
 
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  mesh_msgs
+set(PACKAGE_DEPENDENCIES
   dynamic_reconfigure
+  mesh_msgs
+  roscpp
+  sensor_msgs
 )
+
+find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})
 
 find_package(LVR REQUIRED)
 
@@ -19,8 +22,8 @@ find_package(PCL 1.2 REQUIRED)
 include_directories(SYSTEM ${PCL_INCLUDE_DIRS})
 
 ### compile with c++11
-if (CMAKE_VERSION VERSION_LESS "3.1")
-  if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if ("${CMAKE_VERSION}" VERSION_LESS "3.1")
+  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     set (CMAKE_CXX_FLAGS "--std=gnu++11 ${CMAKE_CXX_FLAGS}")
   endif ()
 else ()
@@ -34,51 +37,47 @@ include_directories(
   ${PCL_INCLUDE_DIRS}
 )
 
-link_directories(
-  ${catkin_LIBRARY_DIRS}
-)
-
 generate_dynamic_reconfigure_options(
   cfg/Reconstruction.cfg
 )
 
 catkin_package(
-  CATKIN_DEPENDS roscpp sensor_msgs mesh_msgs
+  CATKIN_DEPENDS ${PACKAGE_DEPENDENCIES}
   INCLUDE_DIRS include
   DEPENDS LVR
-  LIBRARIES lvr_ros_conversions
+  LIBRARIES ${PROJECT_NAME}_conversions
 )
 
-add_library(lvr_ros_conversions
+add_library(${PROJECT_NAME}_conversions
+  src/colors.cpp
   src/conversions.cpp
-  src/colors.cpp)
+)
 
-target_link_libraries(lvr_ros_conversions
+target_link_libraries(${PROJECT_NAME}_conversions
   ${catkin_LIBRARIES}
   ${LVR_LIBRARIES}
 )
 
-add_executable(lvr_ros_reconstruction
-  src/reconstruction.cpp
+add_executable(${PROJECT_NAME}_reconstruction
+  src/colors.cpp
   src/conversions.cpp
-  src/colors.cpp)
+  src/reconstruction.cpp
+)
 
-target_link_libraries(lvr_ros_reconstruction
+target_link_libraries(${PROJECT_NAME}_reconstruction
   ${catkin_LIBRARIES}
   ${LVR_LIBRARIES}
   ${PCL_LIBRARIES}
 )
 
-add_dependencies(lvr_ros_reconstruction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
-add_dependencies(lvr_ros_reconstruction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
-add_dependencies(lvr_ros_conversions ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
-add_dependencies(lvr_ros_conversions ${catkin_EXPORT_TARGETS} ${PROJECT_NAME}_gencfg)
+add_dependencies(${PROJECT_NAME}_reconstruction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
+add_dependencies(${PROJECT_NAME}_conversions ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
 
 install(
   DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 install(
-  TARGETS lvr_ros_conversions lvr_ros_reconstruction
+  TARGETS ${PROJECT_NAME}_conversions ${PROJECT_NAME}_reconstruction
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
