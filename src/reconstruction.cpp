@@ -25,27 +25,16 @@
 #include "lvr_ros/reconstruction.h"
 #include "lvr_ros/conversions.h"
 
-#include <lvr/reconstruction/AdaptiveKSearchSurface.hpp>
-#include <lvr/reconstruction/FastReconstruction.hpp>
-#include <lvr/reconstruction/PointsetGrid.hpp>
-#include <lvr/reconstruction/FastBox.hpp>
-
 #include <lvr/io/PLYIO.hpp>
 #include <lvr/config/lvropenmp.hpp>
 #include <lvr/geometry/Matrix4.hpp>
-#include <lvr/geometry/HalfEdgeMesh.hpp>
 #include <lvr/texture/Texture.hpp>
 #include <lvr/texture/Transform.hpp>
 #include <lvr/texture/Texturizer.hpp>
 #include <lvr/texture/Statistics.hpp>
 #include <lvr/geometry/QuadricVertexCosts.hpp>
-#include <lvr/reconstruction/SharpBox.hpp>
-
-// PCL related includes
-#include <lvr/reconstruction/PCLKSurface.hpp>
 
 #include <lvr2/geometry/HalfEdgeMesh.hpp>
-#include <lvr2/geometry/BaseVector.hpp>
 #include <lvr2/geometry/Vector.hpp>
 #include <lvr2/geometry/Point.hpp>
 #include <lvr2/geometry/Normal.hpp>
@@ -71,9 +60,6 @@
 #include <iostream>
 
 using std::make_shared;
-
-using Vec = lvr2::BaseVector<float>;
-
 
 namespace lvr_ros {
 
@@ -108,7 +94,7 @@ namespace lvr_ros {
     }
 
     bool Reconstruction::createMesh(const sensor_msgs::PointCloud2& cloud, mesh_msgs::TriangleMeshStamped& mesh_msg){
-        lvr::PointBufferPtr point_buffer_ptr(new lvr::PointBuffer);
+        PointBufferPtr point_buffer_ptr(new PointBuffer);
         lvr::MeshBufferPtr mesh_buffer_ptr(new lvr::MeshBuffer);
 
         if(! lvr_ros::fromPointCloud2ToPointBuffer(cloud, *point_buffer_ptr) ){
@@ -131,11 +117,11 @@ namespace lvr_ros {
         return true;
     }
 
-    bool Reconstruction::createMesh(lvr::PointBufferPtr& point_buffer, lvr::MeshBufferPtr& mesh_buffer){
+    bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr& mesh_buffer){
 
         // Create a point cloud manager
         string pcm_name = config.pcm;
-        lvr::PointsetSurface<Vec>::Ptr surface;
+        lvr2::PointsetSurfacePtr<Vec> surface;
 
         // Create point set surface object
         if(pcm_name == "PCL")
@@ -149,25 +135,13 @@ namespace lvr_ros {
             pcm_name == "NABO" ||
             pcm_name == "NANOFLANN"
         ){
-            // akSurface* aks = new akSurface(
-            //      point_buffer, pcm_name,
-            //      config.kn,
-            //      config.ki,
-            //      config.kd,
-            //      config.ransac
-            // );
-
-            // surface = psSurface::Ptr(aks);
-            // // Set RANSAC flag
-            // aks->useRansac(config.ransac);
             surface = make_shared<lvr2::AdaptiveKSearchSurface<Vec>>(
-                buffer,
+                point_buffer,
                 pcm_name,
-                options.getKn(),
-                options.getKi(),
-                options.getKd(),
-                options.useRansac(),
-                options.getScanPoseFile()
+                config.kn,
+                config.ki,
+                config.kd,
+                config.ransac
             );
         }
         else
@@ -185,7 +159,7 @@ namespace lvr_ros {
         surface->setKn(config.kn);
 
         // Calculate normals if necessary
-        if(!buffer->hasNormals() || options.recalcNormals())
+        if(!point_buffer->hasNormals() || config.recalcNormals)
         {
             surface->calculateSurfaceNormals();
         }
@@ -297,35 +271,7 @@ namespace lvr_ros {
             decomposition = "PMC";
         }
 
-        // lvr::GridBase* grid;
-        // lvr::FastReconstructionBase< cVertex, cNormal >* reconstruction;
-        // if(decomposition == "MC")
-        // {
-        //     grid = new lvr::PointsetGrid<cVertex, lvr::FastBox<cVertex, cNormal> >(resolution, surface, surface->getBoundingBox(), useVoxelsize, config.noExtrusion);
-        //     lvr::PointsetGrid<cVertex, lvr::FastBox<cVertex, cNormal > >* ps_grid = static_cast<lvr::PointsetGrid<cVertex, lvr::FastBox<cVertex, cNormal > > *>(grid);
-        //     ps_grid->calcDistanceValues();
-        //     reconstruction = new lvr::FastReconstruction<cVertex , cNormal, lvr::FastBox<cVertex, cNormal >  >(ps_grid);
-
-        // }
-        // else if(decomposition == "PMC")
-        // {
-        //     lvr::BilinearFastBox<cVertex, cNormal >::m_surface = surface;
-        //     grid = new lvr::PointsetGrid<cVertex, lvr::BilinearFastBox<cVertex, cNormal > >(resolution, surface, surface->getBoundingBox(), useVoxelsize, config.noExtrusion);
-        //     lvr::PointsetGrid<cVertex, lvr::BilinearFastBox<cVertex, cNormal > >* ps_grid = static_cast<lvr::PointsetGrid<cVertex, lvr::BilinearFastBox<cVertex, cNormal > > *>(grid);
-        //     ps_grid->calcDistanceValues();
-        //     reconstruction = new lvr::FastReconstruction<cVertex , cNormal, lvr::BilinearFastBox<cVertex, cNormal >  >(ps_grid);
-
-        // }
-        // else if(decomposition == "SF")
-        // {
-        //     lvr::SharpBox<cVertex, cNormal >::m_surface = surface;
-        //     grid = new lvr::PointsetGrid<cVertex, lvr::SharpBox<cVertex, cNormal > >(resolution, surface, surface->getBoundingBox(), useVoxelsize, config.noExtrusion);
-        //     lvr::PointsetGrid<cVertex, lvr::SharpBox<cVertex, cNormal > >* ps_grid = static_cast<lvr::PointsetGrid<cVertex, lvr::SharpBox<cVertex, cNormal > > *>(grid);
-        //     ps_grid->calcDistanceValues();
-        //     reconstruction = new lvr::FastReconstruction<cVertex , cNormal, lvr::SharpBox<cVertex, cNormal >  >(ps_grid);
-        // }
-
-        shared_ptr<GridBase> grid;
+        shared_ptr<lvr2::GridBase> grid;
         unique_ptr<lvr2::FastReconstructionBase<Vec>> reconstruction;
         if(decomposition == "MC")
         {
@@ -351,7 +297,7 @@ namespace lvr_ros {
                 surface,
                 surface->getBoundingBox(),
                 useVoxelsize,
-                options.extrude()
+                !config.noExtrusion
             );
             ps_grid->calcDistanceValues();
             grid = ps_grid;

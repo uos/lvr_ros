@@ -35,8 +35,10 @@
 #include <ros/ros.h>
 #include <ros/console.h>
 
+#include <lvr2/geometry/BaseVector.hpp>
+#include <lvr2/io/PointBuffer.hpp>
+
 #include <lvr/io/Model.hpp>
-#include <lvr/io/PointBuffer.hpp>
 #include <lvr/io/MeshBuffer.hpp>
 #include <lvr/io/PLYIO.hpp>
 #include <lvr/io/DataStruct.hpp>
@@ -64,126 +66,132 @@
 namespace lvr_ros
 {
 
-  struct MaterialGroup
-  {
-    int                          texture_index;
-    unsigned char                r;
-    unsigned char                g;
-    unsigned char                b;
-    std::vector<unsigned int>    faceBuffer;
-  };
+using Vec = lvr2::BaseVector<float>;
+using PointBuffer = lvr2::PointBuffer<Vec>;
+using PointBufferPtr = lvr2::PointBufferPtr<Vec>;
 
-  typedef std::vector<boost::shared_ptr<MaterialGroup> > GroupVector;
-  typedef boost::shared_ptr<MaterialGroup> MaterialGroupPtr;
+struct MaterialGroup
+{
+    int texture_index;
+    unsigned char r;
+    unsigned char g;
+    unsigned char b;
+    std::vector<unsigned int> faceBuffer;
+};
 
-  /**
-   * @brief Convert lvr::MeshBuffer to mesh_msgs::TriangleMesh
-   * @param buffer to be read
-   * @param message to be returned
-   * @return bool success status
-   */
-  bool fromMeshBufferToTriangleMesh(
-      const lvr::MeshBufferPtr& buffer,
-      mesh_msgs::TriangleMesh& message
-      );
+typedef std::vector <boost::shared_ptr<MaterialGroup>> GroupVector;
+typedef boost::shared_ptr <MaterialGroup> MaterialGroupPtr;
 
-  bool fromMeshBufferToTriangleMesh(
-      lvr::MeshBuffer& buffer,
-      mesh_msgs::TriangleMesh& message
-      );
+/**
+ * @brief Convert lvr::MeshBuffer to mesh_msgs::TriangleMesh
+ * @param buffer to be read
+ * @param message to be returned
+ * @return bool success status
+ */
+bool fromMeshBufferToTriangleMesh(
+    const lvr::MeshBufferPtr& buffer,
+    mesh_msgs::TriangleMesh& message
+);
 
-  /**
-   * @brief Convert mesh_msgs::TriangleMesh to lvr::MeshBuffer
-   * @param message to be read
-   * @param buffer to be returned
-   * @return bool success status
-   */
-  bool fromTriangleMeshToMeshBuffer(
-      const mesh_msgs::TriangleMesh& mesh,
-      lvr::MeshBuffer& buffer
-      );
+bool fromMeshBufferToTriangleMesh(
+    lvr::MeshBuffer& buffer,
+    mesh_msgs::TriangleMesh& message
+);
 
-  bool fromPolygonMeshToTriangleMesh(
-      const mesh_msgs::PolygonMesh& polygon_mesh,
-      mesh_msgs::TriangleMesh& triangle_mesh
-      );
+/**
+ * @brief Convert mesh_msgs::TriangleMesh to lvr::MeshBuffer
+ * @param message to be read
+ * @param buffer to be returned
+ * @return bool success status
+ */
+bool fromTriangleMeshToMeshBuffer(
+    const mesh_msgs::TriangleMesh& mesh,
+    lvr::MeshBuffer& buffer
+);
 
-  void removeDuplicates( lvr::MeshBuffer& buffer);
+bool fromPolygonMeshToTriangleMesh(
+    const mesh_msgs::PolygonMesh& polygon_mesh,
+    mesh_msgs::TriangleMesh& triangle_mesh
+);
 
-  void removeDuplicates( mesh_msgs::TriangleMesh& mesh);
+void removeDuplicates(lvr::MeshBuffer& buffer);
 
-  /**
-   * @brief Creates a LVR-MeshBufferPointer from a file
-   *
-   * @param path    Path to a MeshFile
-   *
-   * @return LVR-MeshBufferPointer
-   */
-  bool readMeshBuffer( lvr::MeshBufferPtr& buffer, string path );
+void removeDuplicates(mesh_msgs::TriangleMesh& mesh);
 
-  /**
-   * @brief Writes a LVR-MeshBufferPointer to a file
-   *
-   * @param mesh   LVR-MeshBufferPointer
-   * @param path   Path to a MeshFile
-   */
-  bool writeMeshBuffer(lvr::MeshBufferPtr& mesh, string path);
+/**
+ * @brief Creates a LVR-MeshBufferPointer from a file
+ *
+ * @param path    Path to a MeshFile
+ *
+ * @return LVR-MeshBufferPointer
+ */
+bool readMeshBuffer(lvr::MeshBufferPtr& buffer, string path);
 
-  /**
-   * @brief Reads a file and returns a lvr_ros/TriangleMesh
-   *
-   * @param path to file
-   * @param mesh to be filled
-   *
-   * @return bool indicating sucess/failure
-   */
-  bool readTriangleMesh( mesh_msgs::TriangleMesh& mesh, string path );
+/**
+ * @brief Writes a LVR-MeshBufferPointer to a file
+ *
+ * @param mesh   LVR-MeshBufferPointer
+ * @param path   Path to a MeshFile
+ */
+bool writeMeshBuffer(lvr::MeshBufferPtr& mesh, string path);
 
-  /**
-   * @brief Writes a ROS-TriangleMeshGeometryMessage to a file
-   *
-   * @param mesh   ROS-TriangleMeshGeometryMessage
-   * @param path   Path to a MeshFile
-   */
-  bool writeTriangleMesh( mesh_msgs::TriangleMesh& mesh, string path );
-  
-  /**
-   * @brief Writes inensity values as rainbow colors for the triangle colors
-   * 
-   * @param intensity	Intensity values
-   * @param mesh		ROS-TriangleMeshGeometryMessage
-   */
-  void intensityToTriangleRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh);
+/**
+ * @brief Reads a file and returns a lvr_ros/TriangleMesh
+ *
+ * @param path to file
+ * @param mesh to be filled
+ *
+ * @return bool indicating sucess/failure
+ */
+bool readTriangleMesh(mesh_msgs::TriangleMesh& mesh, string path);
 
-  /**
-   * @brief Writes inensity values as rainbow colors for the triangle colors
-   * 
-   * @param intensity	Intensity values
-   * @param mesh		ROS-TriangleMeshGeometryMessage
-   * @param min			The minimal value
-   * @param max			The maximal value
-   */
-  void intensityToTriangleRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh, float min, float max);
+/**
+ * @brief Writes a ROS-TriangleMeshGeometryMessage to a file
+ *
+ * @param mesh   ROS-TriangleMeshGeometryMessage
+ * @param path   Path to a MeshFile
+ */
+bool writeTriangleMesh(mesh_msgs::TriangleMesh& mesh, string path);
 
-  /**
-   * @brief Writes inensity values as rainbow colors for the vertex colors
-   * 
-   * @param intensity	Intensity values
-   * @param mesh		ROS-TriangleMeshGeometryMessage
-   * @param min			The minimal value
-   * @param max			The maximla value
-   */
-  void intensityToVertexRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh, float min, float max);
-   
-  /**
-   * @brief Writes inensity values as rainbow colors for the vertex colors
-   * 
-   * @param intensity	Intensity values
-   * @param mesh		ROS-TriangleMeshGeometryMessage
-   */
-  void intensityToVertexRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh);
+/**
+ * @brief Writes inensity values as rainbow colors for the triangle colors
+ *
+ * @param intensity	Intensity values
+ * @param mesh		ROS-TriangleMeshGeometryMessage
+ */
+void intensityToTriangleRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh);
 
-  bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, lvr::PointBuffer& buffer);
+/**
+ * @brief Writes inensity values as rainbow colors for the triangle colors
+ *
+ * @param intensity	Intensity values
+ * @param mesh		ROS-TriangleMeshGeometryMessage
+ * @param min			The minimal value
+ * @param max			The maximal value
+ */
+void intensityToTriangleRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh, float min,
+                                      float max);
+
+/**
+ * @brief Writes inensity values as rainbow colors for the vertex colors
+ *
+ * @param intensity	Intensity values
+ * @param mesh		ROS-TriangleMeshGeometryMessage
+ * @param min			The minimal value
+ * @param max			The maximla value
+ */
+void intensityToVertexRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh, float min,
+                                    float max);
+
+/**
+ * @brief Writes inensity values as rainbow colors for the vertex colors
+ *
+ * @param intensity	Intensity values
+ * @param mesh		ROS-TriangleMeshGeometryMessage
+ */
+void intensityToVertexRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh);
+
+bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBuffer& buffer);
 
 } // end namespace
 
