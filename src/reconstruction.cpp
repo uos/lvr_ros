@@ -42,7 +42,8 @@
 #include <lvr2/util/VectorMap.hpp>
 #include <lvr2/algorithm/FinalizeAlgorithm.hpp>
 #include <lvr2/geometry/BoundingBox.hpp>
-#include <lvr2/algorithm/ClusterGrowingAlgorithm.hpp>
+#include <lvr2/algorithm/Planar.hpp>
+#include <lvr2/algorithm/NormalAlgorithms.hpp>
 #include <lvr2/algorithm/ClusterPainter.hpp>
 
 #include <lvr2/reconstruction/AdaptiveKSearchSurface.hpp>
@@ -355,8 +356,30 @@ namespace lvr_ros {
         //     mesh.fillHoles(config.fillHoles);
         // }
 
+        auto faceNormals = calcFaceNormals(mesh);
+        auto clusterSet = iterativePlanarClusterGrowing(
+            mesh,
+            faceNormals,
+            config.normalThreshold,
+            config.planeIterations,
+            config.minPlaneSize
+        );
+
+        //ClusterPainter painter(clusterSet);
+        //auto colorMap = optional<VertexMap<ClusterPainter::Rgb8Color>>(painter.simpsons(mesh));
+        //auto colorMap = painter.fromPointCloud(mesh, surface);
+
+        // Calc normals for vertices
+        auto vertexNormals = calcVertexNormals(mesh, faceNormals, *surface);
+
         lvr2::FinalizeAlgorithm<Vec> finalize;
-        // finalize.setColorData(&colorMap);
+        finalize.setNormalData(vertexNormals);
+
+        //if (colorMap)
+        //{
+        //    finalize.setColorData(*colorMap);
+        //}
+
         mesh_buffer = finalize.apply(mesh);
 
         // // Create output model and save to file
