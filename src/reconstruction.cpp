@@ -45,6 +45,8 @@
 #include <lvr2/algorithm/Planar.hpp>
 #include <lvr2/algorithm/NormalAlgorithms.hpp>
 #include <lvr2/algorithm/ClusterPainter.hpp>
+#include <lvr2/geometry/Handles.hpp>
+#include <lvr2/geometry/ClusterSet.hpp>
 
 #include <lvr2/reconstruction/AdaptiveKSearchSurface.hpp>
 #include <lvr2/reconstruction/BilinearFastBox.hpp>
@@ -357,13 +359,22 @@ namespace lvr_ros {
         // }
 
         auto faceNormals = calcFaceNormals(mesh);
-        auto clusterSet = iterativePlanarClusterGrowing(
-            mesh,
-            faceNormals,
-            config.normalThreshold,
-            config.planeIterations,
-            config.minPlaneSize
-        );
+
+        lvr2::ClusterSet<lvr2::FaceHandle> clusterSet;
+        if(config.optimizePlanes)
+        {
+            clusterSet = iterativePlanarClusterGrowing(
+                mesh,
+                faceNormals,
+                config.normalThreshold,
+                config.planeIterations,
+                config.minPlaneSize
+            );
+        }
+        else
+        {
+            clusterSet = planarClusterGrowing(mesh, faceNormals, config.normalThreshold);
+        }
 
         //ClusterPainter painter(clusterSet);
         //auto colorMap = optional<VertexMap<ClusterPainter::Rgb8Color>>(painter.simpsons(mesh));
