@@ -23,6 +23,7 @@
  */
 
 #include <iostream>
+#include <memory>
 
 using std::make_shared;
 
