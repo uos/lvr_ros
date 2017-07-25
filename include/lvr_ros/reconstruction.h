@@ -35,39 +35,43 @@
 #include <mesh_msgs/TriangleMesh.h>
 #include <mesh_msgs/TriangleMeshStamped.h>
 
+#include <lvr2/geometry/BaseVector.hpp>
+#include <lvr2/io/PointBuffer.hpp>
 #include <lvr/io/PointBuffer.hpp>
 #include <lvr/io/MeshBuffer.hpp>
 
-namespace lvr_ros{
+namespace lvr_ros
+{
 
-class Reconstruction{
-  public:
-  	Reconstruction();
+using Vec = lvr2::BaseVector<float>;
+using PointBuffer = lvr2::PointBuffer<Vec>;
+using PointBufferPtr = lvr2::PointBufferPtr<Vec>;
+
+class Reconstruction
+{
+public:
+    Reconstruction();
     ~Reconstruction();
-  protected:
-  
-  private:
 
-  	void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud);
+private:
+    void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud);
     bool createMesh(const sensor_msgs::PointCloud2& cloud, mesh_msgs::TriangleMeshStamped& mesh);
-    bool createMesh(lvr::PointBufferPtr& point_buffer, lvr::MeshBufferPtr& mesh_buffer);
-    float* getStatsCoeffs(std::string filename)const;
-
+    bool createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr& mesh_buffer);
+    float *getStatsCoeffs(std::string filename) const;
     void reconfigureCallback(lvr_ros::ReconstructionConfig& config, uint32_t level);
 
-    typedef dynamic_reconfigure::Server<lvr_ros::ReconstructionConfig> DynReconfigureServer;
-    typedef boost::shared_ptr<DynReconfigureServer> DynReconfigureServerPtr;
+    typedef dynamic_reconfigure::Server <lvr_ros::ReconstructionConfig> DynReconfigureServer;
+    typedef boost::shared_ptr <DynReconfigureServer> DynReconfigureServerPtr;
 
     DynReconfigureServerPtr reconfigure_server_ptr;
     DynReconfigureServer::CallbackType callback_type;
 
-  	ros::NodeHandle node_handle;
-  	ros::Publisher mesh_publisher;
-  	ros::Subscriber cloud_subscriber;
-  	ReconstructionConfig config;
+    ros::NodeHandle node_handle;
+    ros::Publisher mesh_publisher;
+    ros::Subscriber cloud_subscriber;
+    ReconstructionConfig config;
 
 };
-
 
 } /* namespace lvr_ros */
 
