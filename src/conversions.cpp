@@ -274,8 +274,7 @@ void removeDuplicates(lvr::MeshBuffer& buffer)
                 new_vertexBuffer.push_back(vertex[1]);
                 new_vertexBuffer.push_back(vertex[2]);
 
-                vertexMap.insert(pair < lvr::Vertex < float > , unsigned
-                int > (vertex, pos));
+                vertexMap.insert(pair<lvr::Vertex<float>, unsigned int>(vertex, pos));
             }
 
             new_indexBuffer.push_back(pos);
@@ -480,7 +479,7 @@ bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBu
     }
 
 
-    // copy color data if available    
+    // copy color data if available
     if (hasCloudChannel(cloud, "rgb"))
     {
         ROS_DEBUG_STREAM("include rgb in conversion.");
