@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<launch>
+  <node pkg="lvr_ros" type="lvr_ros_debug" name="lvr_ros_debug" output="screen" cwd="node">
+    <remap from="pointcloud" to="voxel_cloud"/>
+  </node>
+</launch>

@@ -63,21 +63,31 @@ add_executable(${PROJECT_NAME}_reconstruction
   src/conversions.cpp
   src/reconstruction.cpp
 )
-
 target_link_libraries(${PROJECT_NAME}_reconstruction
-  ${catkin_LIBRARIES}
-  ${LVR_LIBRARIES}
-  ${PCL_LIBRARIES}
+    ${catkin_LIBRARIES}
+    ${LVR_LIBRARIES}
+    ${PCL_LIBRARIES}
+)
+
+add_executable(${PROJECT_NAME}_debug
+    src/debug.cpp
+)
+target_link_libraries(${PROJECT_NAME}_debug
+    ${catkin_LIBRARIES}
+    ${LVR_LIBRARIES}
+    ${PCL_LIBRARIES}
+    ${PROJECT_NAME}_conversions
 )
 
 add_dependencies(${PROJECT_NAME}_reconstruction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
 add_dependencies(${PROJECT_NAME}_conversions ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
+add_dependencies(${PROJECT_NAME}_debug ${catkin_EXPORTED_TARGETS})
 
 install(
   DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 install(
-  TARGETS ${PROJECT_NAME}_conversions ${PROJECT_NAME}_reconstruction
+  TARGETS ${PROJECT_NAME}_conversions ${PROJECT_NAME}_reconstruction ${PROJECT_NAME}_debug
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
