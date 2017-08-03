@@ -43,15 +43,13 @@ using std::make_shared;
 #include <lvr2/geometry/Vector.hpp>
 #include <lvr2/geometry/Point.hpp>
 #include <lvr2/geometry/Normal.hpp>
-#include <lvr2/util/StableVector.hpp>
-#include <lvr2/util/VectorMap.hpp>
 #include <lvr2/algorithm/FinalizeAlgorithm.hpp>
 #include <lvr2/geometry/BoundingBox.hpp>
 #include <lvr2/algorithm/Planar.hpp>
 #include <lvr2/algorithm/NormalAlgorithms.hpp>
 #include <lvr2/algorithm/ClusterPainter.hpp>
 #include <lvr2/geometry/Handles.hpp>
-#include <lvr2/geometry/ClusterSet.hpp>
+#include <lvr2/util/ClusterBiMap.hpp>
 
 #include <lvr2/reconstruction/AdaptiveKSearchSurface.hpp>
 #include <lvr2/reconstruction/BilinearFastBox.hpp>
@@ -375,7 +373,7 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
 
     auto faceNormals = calcFaceNormals(mesh);
 
-    lvr2::ClusterSet <lvr2::FaceHandle> clusterSet;
+    lvr2::ClusterBiMap <lvr2::FaceHandle> clusterSet;
     if (config.optimizePlanes)
     {
         clusterSet = iterativePlanarClusterGrowing(
