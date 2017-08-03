@@ -25,11 +25,13 @@
 #ifndef LVR_ROS_RECONSTRUCTION_H_
 #define LVR_ROS_RECONSTRUCTION_H_
 
+#include <actionlib/server/simple_action_server.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <ros/ros.h>
 #include <ros/console.h>
 #include <dynamic_reconfigure/server.h>
 #include "lvr_ros/ReconstructionConfig.h"
+#include "lvr_ros/ReconstructAction.h"
 
 
 #include <mesh_msgs/TriangleMesh.h>
@@ -54,6 +56,7 @@ public:
     ~Reconstruction();
 
 private:
+    void reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal);
     void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud);
     bool createMesh(const sensor_msgs::PointCloud2& cloud, mesh_msgs::TriangleMeshStamped& mesh);
     bool createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr& mesh_buffer);
@@ -62,6 +65,7 @@ private:
 
     typedef dynamic_reconfigure::Server <lvr_ros::ReconstructionConfig> DynReconfigureServer;
     typedef boost::shared_ptr <DynReconfigureServer> DynReconfigureServerPtr;
+    typedef actionlib::SimpleActionServer<lvr_ros::ReconstructAction> ActionServer;
 
     DynReconfigureServerPtr reconfigure_server_ptr;
     DynReconfigureServer::CallbackType callback_type;
@@ -70,6 +74,7 @@ private:
     ros::Publisher mesh_publisher;
     ros::Subscriber cloud_subscriber;
     ReconstructionConfig config;
+    ActionServer as_;
 
 };
 

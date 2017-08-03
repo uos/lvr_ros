@@ -73,7 +73,7 @@ namespace lvr_ros
 // typedef lvr::AdaptiveKSearchSurface< cVertex, cNormal > akSurface;
 // typedef lvr::PCLKSurface< cVertex, cNormal > pclSurface;
 
-Reconstruction::Reconstruction()
+Reconstruction::Reconstruction() : as_(node_handle, "reconstruction", boost::bind(&Reconstruction::reconstruct, this, _1), false)
 {
     ros::NodeHandle nh("~");
 
@@ -84,10 +84,28 @@ Reconstruction::Reconstruction()
     reconfigure_server_ptr = DynReconfigureServerPtr(new DynReconfigureServer(nh));
     callback_type = boost::bind(&Reconstruction::reconfigureCallback, this, _1, _2);
     reconfigure_server_ptr->setCallback(callback_type);
+
+    // start action server
+    as_.start();
 }
 
 Reconstruction::~Reconstruction()
 {}
+
+void Reconstruction::reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal)
+{
+    try
+    {
+        lvr_ros::ReconstructResult result;
+        createMesh(goal->point_cloud, result.mesh);
+        as_.setSucceeded(result, "Published mesh.");
+    }
+    catch(std::exception& e)
+    {
+        ROS_ERROR_STREAM("Error: " << e.what());
+        as_.setAborted();
+    }
+}
 
 void Reconstruction::pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud)
 {

@@ -3,8 +3,13 @@ cmake_minimum_required(VERSION 2.4.6)
 project(lvr_ros)
 
 set(PACKAGE_DEPENDENCIES
+  actionlib
+  actionlib_msgs
   dynamic_reconfigure
+  genmsg
   mesh_msgs
+  message_generation
+  message_runtime
   roscpp
   sensor_msgs
 )
@@ -14,6 +19,13 @@ find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})
 find_package(LVR REQUIRED)
 
 add_definitions(${LVR_DEFINITIONS})
+
+add_action_files(
+  DIRECTORY
+  action
+  FILES
+  Reconstruct.action
+)
 
 find_path(OPENGL_INC gl.h /usr/include/GL)
 include_directories(${OPENGL_INC})
@@ -39,6 +51,13 @@ include_directories(
 
 generate_dynamic_reconfigure_options(
   cfg/Reconstruction.cfg
+)
+
+generate_messages(
+  DEPENDENCIES
+  actionlib_msgs
+  mesh_msgs
+  sensor_msgs
 )
 
 catkin_package(
