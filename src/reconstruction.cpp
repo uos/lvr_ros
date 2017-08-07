@@ -47,6 +47,8 @@ using std::make_shared;
 #include <lvr2/geometry/BoundingBox.hpp>
 #include <lvr2/algorithm/Planar.hpp>
 #include <lvr2/algorithm/NormalAlgorithms.hpp>
+#include <lvr2/algorithm/CleanupAlgorithms.hpp>
+#include <lvr2/algorithm/ClusterAlgorithms.hpp>
 #include <lvr2/algorithm/ClusterPainter.hpp>
 #include <lvr2/geometry/Handles.hpp>
 #include <lvr2/util/ClusterBiMap.hpp>
@@ -258,22 +260,43 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
     // Create mesh
     reconstruction->getMesh(mesh);
 
+
+    // =======================================================================
+    // Optimize and finalize mesh
+    // =======================================================================
+    if(config.danglingArtifacts != 0)
+    {
+        removeDanglingCluster(mesh, static_cast<size_t>(config.danglingArtifacts));
+    }
+
+    // Magic number from lvr1 `cleanContours`...
+    cleanContours(mesh, config.cleanContours, 0.0001);
+
     auto faceNormals = calcFaceNormals(mesh);
 
-    lvr2::ClusterBiMap <lvr2::FaceHandle> clusterSet;
+    lvr2::ClusterBiMap <lvr2::FaceHandle> clusterBiMap;
     if (config.optimizePlanes)
     {
-        clusterSet = iterativePlanarClusterGrowing(
+        clusterBiMap = iterativePlanarClusterGrowing(
             mesh,
             faceNormals,
             config.normalThreshold,
             config.planeIterations,
             config.minPlaneSize
         );
+
+        if (config.smallRegionThreshold > 0)
+        {
+            deleteSmallPlanarCluster(
+                mesh,
+                clusterBiMap,
+                static_cast<size_t>(config.smallRegionThreshold)
+            );
+        }
     }
     else
     {
-        clusterSet = planarClusterGrowing(mesh, faceNormals, config.normalThreshold);
+        clusterBiMap = planarClusterGrowing(mesh, faceNormals, config.normalThreshold);
     }
 
     // Calc normals for vertices
