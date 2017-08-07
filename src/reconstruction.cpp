@@ -340,7 +340,7 @@ float *Reconstruction::getStatsCoeffs(std::string filename) const
 }
 
 
-} /* namespace lvr_ros */
+} // namespace lvr_ros
 
 
 int main(int argc, char **args)
