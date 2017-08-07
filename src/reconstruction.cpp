@@ -305,36 +305,7 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
     lvr2::FinalizeAlgorithm <Vec> finalize;
     finalize.setNormalData(vertexNormals);
 
-    //if (colorMap)
-    //{
-    //    finalize.setColorData(*colorMap);
-    //}
-
     mesh_buffer = finalize.apply(mesh);
-
-    // // Create output model and save to file
-    // auto model = new lvr::Model(buffer);
-    // lvr::ModelPtr m(model);
-    // cout << timestamp << "Saving mesh." << endl;
-    // lvr::ModelFactory::saveModel( m, "triangle_mesh.ply");
-
-    // // Save triangle mesh
-    // if ( config.retesselate )
-    // {
-    //     mesh.finalizeAndRetesselate(config.generateTextures, config.lineFusionThreshold);
-    // }
-    // else
-    // {
-    //     mesh.finalize();
-    // }
-
-    // // Write classification to file
-    // if ( config.writeClassificationResult )
-    // {
-    //     mesh.writeClassificationResult();
-    // }
-
-    // mesh_buffer = mesh.meshBuffer();
 
     ROS_INFO_STREAM("Reconstruction finished!");
     return true;
