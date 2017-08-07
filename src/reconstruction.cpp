@@ -66,11 +66,17 @@ using std::make_shared;
 namespace lvr_ros
 {
 
-Reconstruction::Reconstruction() : as_(node_handle, "reconstruction", boost::bind(&Reconstruction::reconstruct, this, _1), false)
+Reconstruction::Reconstruction()
+    : as_(node_handle, "reconstruction", boost::bind(&Reconstruction::reconstruct, this, _1), false)
 {
     ros::NodeHandle nh("~");
 
-    cloud_subscriber = node_handle.subscribe("/pointcloud", 1, &Reconstruction::pointCloudCallback, this);
+    cloud_subscriber = node_handle.subscribe(
+        "/pointcloud",
+        1,
+        &Reconstruction::pointCloudCallback,
+        this
+    );
     mesh_publisher = node_handle.advertise<mesh_msgs::TriangleMeshStamped>("/mesh", 1);
 
     // setup dynamic reconfigure
@@ -109,14 +115,20 @@ void Reconstruction::reconfigureCallback(lvr_ros::ReconstructionConfig& config, 
     this->config = config;
 }
 
-bool Reconstruction::createMesh(const sensor_msgs::PointCloud2& cloud, mesh_msgs::TriangleMeshStamped& mesh_msg)
+bool Reconstruction::createMesh(
+    const sensor_msgs::PointCloud2& cloud,
+    mesh_msgs::TriangleMeshStamped& mesh_msg
+)
 {
     PointBufferPtr point_buffer_ptr(new PointBuffer);
     lvr::MeshBufferPtr mesh_buffer_ptr(new lvr::MeshBuffer);
 
     if (!lvr_ros::fromPointCloud2ToPointBuffer(cloud, *point_buffer_ptr))
     {
-        ROS_ERROR_STREAM("Could not convert point cloud from \"sensor_msgs::PointCloud2\" to \"lvr::PointBuffer\"!");
+        ROS_ERROR_STREAM(
+            "Could not convert point cloud from \"sensor_msgs::PointCloud2\" "
+            "to \"lvr::PointBuffer\"!"
+        );
         return false;
     }
     if (!createMesh(point_buffer_ptr, mesh_buffer_ptr))
@@ -127,7 +139,9 @@ bool Reconstruction::createMesh(const sensor_msgs::PointCloud2& cloud, mesh_msgs
     if (!lvr_ros::fromMeshBufferToTriangleMesh(mesh_buffer_ptr, mesh_msg.mesh))
     {
         ROS_ERROR_STREAM(
-            "Could not convert point cloud from \"lvr::MeshBuffer\" to \"mesh_msgs::TriangleMeshStamped\"!");
+            "Could not convert point cloud from \"lvr::MeshBuffer\" "
+            "to \"mesh_msgs::TriangleMeshStamped\"!"
+        );
         return false;
     }
 
