@@ -61,15 +61,10 @@ using std::make_shared;
 #include <lvr2/reconstruction/PointsetGrid.hpp>
 #include <lvr2/io/PointBuffer.hpp>
 #include <lvr2/util/Factories.hpp>
+#include <lvr2/util/Panic.hpp>
 
 namespace lvr_ros
 {
-
-// typedef lvr::cVertex cVertex;
-// typedef lvr::cNormal cNormal;
-// typedef lvr::PointsetSurface< cVertex > psSurface;
-// typedef lvr::AdaptiveKSearchSurface< cVertex, cNormal > akSurface;
-// typedef lvr::PCLKSurface< cVertex, cNormal > pclSurface;
 
 Reconstruction::Reconstruction() : as_(node_handle, "reconstruction", boost::bind(&Reconstruction::reconstruct, this, _1), false)
 {
@@ -86,9 +81,6 @@ Reconstruction::Reconstruction() : as_(node_handle, "reconstruction", boost::bin
     // start action server
     as_.start();
 }
-
-Reconstruction::~Reconstruction()
-{}
 
 void Reconstruction::reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal)
 {
@@ -148,7 +140,6 @@ bool Reconstruction::createMesh(const sensor_msgs::PointCloud2& cloud, mesh_msgs
 
 bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr& mesh_buffer)
 {
-
     // Create a point cloud manager
     string pcm_name = config.pcm;
     lvr2::PointsetSurfacePtr <Vec> surface;
@@ -156,8 +147,7 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
     // Create point set surface object
     if (pcm_name == "PCL")
     {
-        throw "PCL not supported right meow!";
-        // surface = psSurface::Ptr( new pclSurface(point_buffer));
+        lvr2::panic("PCL not supported right meow!");
     }
     else if (
         pcm_name == "STANN" ||
@@ -201,82 +191,6 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
 
     // Create an empty mesh
     lvr2::HalfEdgeMesh <Vec> mesh;
-    // lvr::HalfEdgeMesh<cVertex , cNormal > mesh( surface );
-
-    // // Set recursion depth for region growing
-    // if(config.depth)
-    // {
-    //     mesh.setDepth(config.depth);
-    // }
-
-    // if(config.texelSize)
-    // {
-    //     lvr::Texture::m_texelSize = config.texelSize;
-    // }
-
-    // if(config.texturePack != "")
-    // {
-    //     lvr::Texturizer<lvr::Vertex<float> , lvr::cNormal >::m_filename = config.texturePack;
-    //     if(! config.texturePack.empty())
-    //     {
-    //         float* sc = getStatsCoeffs(config.texturePack);
-    //         for (int i = 0; i < 14; i++)
-    //         {
-    //             lvr::Statistics::m_coeffs[i] = sc[i];
-    //         }
-    //         delete sc;
-    //     }
-    //     if(config.numStatsColors)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_numStatsColors = config.numStatsColors;
-    //     }
-    //     if(config.numCCVColors)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_numCCVColors = config.numCCVColors;
-    //     }
-    //     if(config.coherenceThreshold)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_coherenceThreshold = config.coherenceThreshold;
-    //     }
-
-    //     if(config.colorThreshold)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_colorThreshold = config.colorThreshold;
-    //     }
-    //     if(config.statsThreshold)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_statsThreshold = config.statsThreshold;
-    //     }
-    //     if(config.useCrossCorr)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_useCrossCorr = config.useCrossCorr;
-    //     }
-    //     if(config.featureThreshold)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_featureThreshold = config.featureThreshold;
-    //     }
-    //     if(config.patternThreshold)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_patternThreshold = config.patternThreshold;
-    //     }
-    //     if(config.textureAnalysis)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_doAnalysis = true;
-    //     }
-    //     if(config.minTransformVotes)
-    //     {
-    //         lvr::Transform::m_minimumVotes = config.minTransformVotes;
-    //     }
-    // }
-
-    // if(config.sharpFeatThreshold)
-    // {
-    //     lvr::SharpBox<lvr::Vertex<float> , lvr::cNormal >::m_theta_sharp = config.sharpFeatThreshold;
-    // }
-    // if(config.sharpCornThreshold)
-    // {
-    //     lvr::SharpBox<lvr::Vertex<float> , lvr::cNormal >::m_phi_corner = config.sharpCornThreshold;
-    // }
 
     // Determine whether to use intersections or voxelsize
     float resolution;
@@ -306,20 +220,7 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
     unique_ptr <lvr2::FastReconstructionBase<Vec>> reconstruction;
     if (decomposition == "MC")
     {
-        // grid = make_shared<PointsetGrid<
-        //     ColorVertex<float, unsigned char>,
-        //     FastBox<ColorVertex<float, unsigned char>,
-        //     Normal<float>
-        // >>(resolution, surface, surface->getBoundingBox(), useVoxelsize, options.extrude());
-        //         auto ps_grid = static_cast<PointsetGrid<ColorVertex<float, unsigned char>,
-        //              FastBox<ColorVertex<float, unsigned char>, Normal<float> > > *>(grid);
-        //         ps_grid->calcDistanceValues();
-        //         reconstruction = new FastReconstruction<
-        //             ColorVertex<float, unsigned char>,
-        //             Normal<float>,
-        //             FastBox<ColorVertex<float, unsigned char>, Normal<float>>
-        //         >(ps_grid);
-
+        lvr2::panic("MC decomposition type not supported right now!");
     }
     else if (decomposition == "PMC")
     {
@@ -337,57 +238,11 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
     }
     else if (decomposition == "SF")
     {
-        //         SharpBox<ColorVertex<float, unsigned char>, Normal<float> >::m_surface = surface;
-        //         grid = new PointsetGrid<ColorVertex<float, unsigned char>, SharpBox<ColorVertex<float,
-        //              unsigned char>, Normal<float> > >(
-        //                  resolution, surface, surface->getBoundingBox(), useVoxelsize, options.extrude()
-        //              );
-        //         auto ps_grid = static_cast<PointsetGrid<ColorVertex<float, unsigned char>,
-        //              SharpBox<ColorVertex<float, unsigned char>, Normal<float> > > *>(grid);
-        //         ps_grid->calcDistanceValues();
-        //         reconstruction = new FastReconstruction<
-        //             ColorVertex<float, unsigned char>,
-        //             Normal<float>,
-        //             SharpBox<ColorVertex<float, unsigned char>, Normal<float>>
-        //         >(ps_grid);
+        lvr2::panic("SF decomposition type not supported right now!");
     }
 
     // Create mesh
     reconstruction->getMesh(mesh);
-
-    // if(config.danglingArtifacts)
-    // {
-    //     mesh.removeDanglingArtifacts(config.danglingArtifacts);
-    // }
-
-    // Optimize mesh
-    // mesh.cleanContours(config.cleanContours);
-    // mesh.setClassifier(config.classifier);
-    // mesh.getClassifier().setMinRegionSize(config.smallRegionThreshold);
-
-    // if(config.optimizePlanes)
-    // {
-    //     mesh.optimizePlanes(config.planeIterations,
-    //             config.normalThreshold,
-    //             config.minPlaneSize,
-    //             config.smallRegionThreshold,
-    //             true);
-
-    //     mesh.fillHoles(config.fillHoles);
-    //     mesh.optimizePlaneIntersections();
-    //     mesh.restorePlanes(config.minPlaneSize);
-
-    //     if(config.numEdgeCollapses)
-    //     {
-    //         lvr::QuadricVertexCosts<cVertex , cNormal > c = lvr::QuadricVertexCosts<cVertex , cNormal >(true);
-    //         mesh.reduceMeshByCollapse(config.numEdgeCollapses, c);
-    //     }
-    // }
-    // else if(config.clusterPlanes)
-    // {
-    //     mesh.clusterRegions(config.normalThreshold, config.minPlaneSize);
-    //     mesh.fillHoles(config.fillHoles);
-    // }
 
     auto faceNormals = calcFaceNormals(mesh);
 
@@ -406,10 +261,6 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
     {
         clusterSet = planarClusterGrowing(mesh, faceNormals, config.normalThreshold);
     }
-
-    //ClusterPainter painter(clusterSet);
-    //auto colorMap = optional<VertexMap<ClusterPainter::Rgb8Color>>(painter.simpsons(mesh));
-    //auto colorMap = painter.fromPointCloud(mesh, surface);
 
     // Calc normals for vertices
     auto vertexNormals = calcVertexNormals(mesh, faceNormals, *surface);

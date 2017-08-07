@@ -53,7 +53,6 @@ class Reconstruction
 {
 public:
     Reconstruction();
-    ~Reconstruction();
 
 private:
     void reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal);
