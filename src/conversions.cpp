@@ -305,6 +305,27 @@ void intensityToTriangleRainbowColors(const std::vector<float>& intensity, mesh_
     }
 }
 
+void intensityToTriangleRainbowColors(const lvr2::DenseVertexMap<float>& intensity, mesh_msgs::TriangleMesh& mesh, float min,
+                                      float max)
+{
+    float range = max - min;
+
+    float r, g, b;
+    float a = 1;
+
+    for (auto intensity_val: intensity)
+    {
+        float norm = (intensity[intensity_val] - min) / range;
+        getRainbowColor(norm, r, g, b);
+        std_msgs::ColorRGBA color;
+        color.a = a;
+        color.r = r;
+        color.g = g;
+        color.b = b;
+        mesh.triangle_colors.push_back(color);
+    }
+}
+
 void intensityToTriangleRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh)
 {
     float min = std::numeric_limits<float>::max();
