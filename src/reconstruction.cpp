@@ -95,7 +95,7 @@ void Reconstruction::reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal)
     try
     {
         lvr_ros::ReconstructResult result;
-        createMesh(goal->point_cloud, result.mesh);
+        createMesh(goal->cloud, result.mesh);
         as_.setSucceeded(result, "Published mesh.");
     }
     catch(std::exception& e)
