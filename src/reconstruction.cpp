@@ -43,15 +43,13 @@ using std::make_shared;
 #include <lvr2/geometry/Vector.hpp>
 #include <lvr2/geometry/Point.hpp>
 #include <lvr2/geometry/Normal.hpp>
-#include <lvr2/util/StableVector.hpp>
-#include <lvr2/util/VectorMap.hpp>
 #include <lvr2/algorithm/FinalizeAlgorithm.hpp>
 #include <lvr2/geometry/BoundingBox.hpp>
 #include <lvr2/algorithm/Planar.hpp>
 #include <lvr2/algorithm/NormalAlgorithms.hpp>
 #include <lvr2/algorithm/ClusterPainter.hpp>
 #include <lvr2/geometry/Handles.hpp>
-#include <lvr2/geometry/ClusterSet.hpp>
+#include <lvr2/util/ClusterBiMap.hpp>
 
 #include <lvr2/reconstruction/AdaptiveKSearchSurface.hpp>
 #include <lvr2/reconstruction/BilinearFastBox.hpp>
@@ -73,7 +71,7 @@ namespace lvr_ros
 // typedef lvr::AdaptiveKSearchSurface< cVertex, cNormal > akSurface;
 // typedef lvr::PCLKSurface< cVertex, cNormal > pclSurface;
 
-Reconstruction::Reconstruction()
+Reconstruction::Reconstruction() : as_(node_handle, "reconstruction", boost::bind(&Reconstruction::reconstruct, this, _1), false)
 {
     ros::NodeHandle nh("~");
 
@@ -84,10 +82,28 @@ Reconstruction::Reconstruction()
     reconfigure_server_ptr = DynReconfigureServerPtr(new DynReconfigureServer(nh));
     callback_type = boost::bind(&Reconstruction::reconfigureCallback, this, _1, _2);
     reconfigure_server_ptr->setCallback(callback_type);
+
+    // start action server
+    as_.start();
 }
 
 Reconstruction::~Reconstruction()
 {}
+
+void Reconstruction::reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal)
+{
+    try
+    {
+        lvr_ros::ReconstructResult result;
+        createMesh(goal->point_cloud, result.mesh);
+        as_.setSucceeded(result, "Published mesh.");
+    }
+    catch(std::exception& e)
+    {
+        ROS_ERROR_STREAM("Error: " << e.what());
+        as_.setAborted();
+    }
+}
 
 void Reconstruction::pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud)
 {
@@ -375,7 +391,7 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
 
     auto faceNormals = calcFaceNormals(mesh);
 
-    lvr2::ClusterSet <lvr2::FaceHandle> clusterSet;
+    lvr2::ClusterBiMap <lvr2::FaceHandle> clusterSet;
     if (config.optimizePlanes)
     {
         clusterSet = iterativePlanarClusterGrowing(

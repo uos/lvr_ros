@@ -3,8 +3,13 @@ cmake_minimum_required(VERSION 2.4.6)
 project(lvr_ros)
 
 set(PACKAGE_DEPENDENCIES
+  actionlib
+  actionlib_msgs
   dynamic_reconfigure
+  genmsg
   mesh_msgs
+  message_generation
+  message_runtime
   roscpp
   sensor_msgs
 )
@@ -14,6 +19,13 @@ find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})
 find_package(LVR REQUIRED)
 
 add_definitions(${LVR_DEFINITIONS})
+
+add_action_files(
+  DIRECTORY
+  action
+  FILES
+  Reconstruct.action
+)
 
 find_path(OPENGL_INC gl.h /usr/include/GL)
 include_directories(${OPENGL_INC})
@@ -41,6 +53,13 @@ generate_dynamic_reconfigure_options(
   cfg/Reconstruction.cfg
 )
 
+generate_messages(
+  DEPENDENCIES
+  actionlib_msgs
+  mesh_msgs
+  sensor_msgs
+)
+
 catkin_package(
   CATKIN_DEPENDS ${PACKAGE_DEPENDENCIES}
   INCLUDE_DIRS include
@@ -63,21 +82,31 @@ add_executable(${PROJECT_NAME}_reconstruction
   src/conversions.cpp
   src/reconstruction.cpp
 )
-
 target_link_libraries(${PROJECT_NAME}_reconstruction
-  ${catkin_LIBRARIES}
-  ${LVR_LIBRARIES}
-  ${PCL_LIBRARIES}
+    ${catkin_LIBRARIES}
+    ${LVR_LIBRARIES}
+    ${PCL_LIBRARIES}
+)
+
+add_executable(${PROJECT_NAME}_debug
+    src/debug.cpp
+)
+target_link_libraries(${PROJECT_NAME}_debug
+    ${catkin_LIBRARIES}
+    ${LVR_LIBRARIES}
+    ${PCL_LIBRARIES}
+    ${PROJECT_NAME}_conversions
 )
 
 add_dependencies(${PROJECT_NAME}_reconstruction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
 add_dependencies(${PROJECT_NAME}_conversions ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
+add_dependencies(${PROJECT_NAME}_debug ${catkin_EXPORTED_TARGETS})
 
 install(
   DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 install(
-  TARGETS ${PROJECT_NAME}_conversions ${PROJECT_NAME}_reconstruction
+  TARGETS ${PROJECT_NAME}_conversions ${PROJECT_NAME}_reconstruction ${PROJECT_NAME}_debug
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
