@@ -37,6 +37,8 @@
 
 #include <lvr2/geometry/BaseVector.hpp>
 #include <lvr2/io/PointBuffer.hpp>
+#include <lvr2/geometry/BaseMesh.hpp>
+#include <lvr2/attrmaps/AttrMaps.hpp>
 
 #include <lvr/io/Model.hpp>
 #include <lvr/io/MeshBuffer.hpp>
@@ -154,40 +156,63 @@ bool readTriangleMesh(mesh_msgs::TriangleMesh& mesh, string path);
 bool writeTriangleMesh(mesh_msgs::TriangleMesh& mesh, string path);
 
 /**
- * @brief Writes inensity values as rainbow colors for the triangle colors
+ * @brief Writes intensity values as rainbow colors for the triangle colors
  *
- * @param intensity	Intensity values
- * @param mesh		ROS-TriangleMeshGeometryMessage
+ * @param intensity Intensity values as std::vector<float>
+ * @param mesh      ROS-TriangleMeshGeometryMessage
  */
 void intensityToTriangleRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh);
 
 /**
- * @brief Writes inensity values as rainbow colors for the triangle colors
+ * @brief Writes intensity values as rainbow colors for the triangle colors
  *
- * @param intensity	Intensity values
- * @param mesh		ROS-TriangleMeshGeometryMessage
- * @param min			The minimal value
- * @param max			The maximal value
+ * @param intensity Intensity values
+ * @param mesh      ROS-TriangleMeshGeometryMessage
+ * @param min       The minimal value
+ * @param max       The maximal value
  */
-void intensityToTriangleRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh, float min,
-                                      float max);
+void intensityToTriangleRainbowColors(
+    const std::vector<float>& intensity,
+    mesh_msgs::TriangleMesh& mesh,
+    float min,
+    float max
+);
 
 /**
- * @brief Writes inensity values as rainbow colors for the vertex colors
+ * @brief Writes intensity values as rainbow colors for the vertex colors
  *
- * @param intensity	Intensity values
- * @param mesh		ROS-TriangleMeshGeometryMessage
- * @param min			The minimal value
- * @param max			The maximla value
+ * @param intensity Intensity values as std::vector<float>
+ * @param mesh      ROS-TriangleMeshGeometryMessage
+ * @param min       The minimal value
+ * @param max       The maximal value
  */
-void intensityToVertexRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh, float min,
-                                    float max);
+void intensityToVertexRainbowColors(
+    const std::vector<float>& intensity,
+    mesh_msgs::TriangleMesh& mesh,
+    float min,
+    float max
+);
 
 /**
- * @brief Writes inensity values as rainbow colors for the vertex colors
+ * @brief Writes intensity values as rainbow colors for the vertex colors
  *
- * @param intensity	Intensity values
- * @param mesh		ROS-TriangleMeshGeometryMessage
+ * @param intensity Intensity values as DenseVertexMap<float>
+ * @param mesh      ROS-TriangleMeshGeometryMessage
+ * @param min       The minimal value
+ * @param max       The maximal value
+ */
+void intensityToVertexRainbowColors(
+    const lvr2::DenseVertexMap<float>& intensity,
+    mesh_msgs::TriangleMesh& mesh,
+    float min,
+    float max
+);
+
+/**
+ * @brief Writes intensity values as rainbow colors for the vertex colors
+ *
+ * @param intensity Intensity values
+ * @param mesh      ROS-TriangleMeshGeometryMessage
  */
 void intensityToVertexRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh);
 
