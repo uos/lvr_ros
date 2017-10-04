@@ -272,6 +272,8 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
     // Magic number from lvr1 `cleanContours`...
     cleanContours(mesh, config.cleanContours, 0.0001);
 
+    naiveFillSmallHoles(mesh, static_cast<size_t>(config.fillHoles), false);
+
     auto faceNormals = calcFaceNormals(mesh);
 
     lvr2::ClusterBiMap <lvr2::FaceHandle> clusterBiMap;
