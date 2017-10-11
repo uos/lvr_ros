@@ -340,9 +340,7 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
     finalize.setMaterializerResult(matResult);
 
     // Apply finalize algorithm
-    // Do some weird stuff to convert boost:shared_ptr to std::shared_ptr
-    // boost::shared_ptr<lvr2::MeshBuffer<Vec>> meshBufferBoostPtr = finalize.apply(mesh);
-    // mesh_buffer = make_shared<lvr::MeshBuffer>(*meshBufferBoostPtr.get()->toOldBuffer());
+    // FinalizeAlgorithm will generate a lvr2::MeshBuffer, which for now will be converted back to old lvr::MeshBuffer
     mesh_buffer = (*finalize.apply(mesh).get()).toOldBuffer();
 
     ROS_INFO_STREAM("Reconstruction finished!");
