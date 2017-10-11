@@ -39,8 +39,10 @@
 
 #include <lvr2/geometry/BaseVector.hpp>
 #include <lvr2/io/PointBuffer.hpp>
+#include <lvr2/io/MeshBuffer.hpp>
 #include <lvr/io/PointBuffer.hpp>
 #include <lvr/io/MeshBuffer.hpp>
+
 
 namespace lvr_ros
 {
@@ -48,6 +50,9 @@ namespace lvr_ros
 using Vec = lvr2::BaseVector<float>;
 using PointBuffer = lvr2::PointBuffer<Vec>;
 using PointBufferPtr = lvr2::PointBufferPtr<Vec>;
+// using MeshBuffer = lvr2::MeshBuffer<Vec>;
+// using MeshBufferPtr = lvr2::MeshBufferPtr<Vec>;
+
 
 class Reconstruction
 {
