@@ -37,6 +37,7 @@
 
 #include <lvr2/geometry/BaseVector.hpp>
 #include <lvr2/io/PointBuffer.hpp>
+#include <lvr2/io/MeshBuffer.hpp>
 #include <lvr2/geometry/BaseMesh.hpp>
 #include <lvr2/attrmaps/AttrMaps.hpp>
 
@@ -52,6 +53,7 @@
 
 #include <std_msgs/String.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/fill_image.h>
 
 #include <mesh_msgs/Cluster.h>
 #include <mesh_msgs/Material.h>
@@ -61,6 +63,14 @@
 #include <mesh_msgs/TriangleIndices.h>
 #include <mesh_msgs/TriangleMesh.h>
 #include <mesh_msgs/TriangleMeshStamped.h>
+#include <mesh_msgs/MeshGeometry.h>
+#include <mesh_msgs/MeshGeometry.h>
+#include <mesh_msgs/MeshMaterialsStamped.h>
+#include <mesh_msgs/MeshMaterialsStamped.h>
+#include <mesh_msgs/MeshVertexColors.h>
+#include <mesh_msgs/MeshVertexColorsStamped.h>
+#include <mesh_msgs/VertexTexCoords.h>
+#include <mesh_msgs/Material.h>
 
 #include <sensor_msgs/point_cloud2_iterator.h>
 
@@ -83,6 +93,17 @@ struct MaterialGroup
 
 typedef std::vector <boost::shared_ptr<MaterialGroup>> GroupVector;
 typedef boost::shared_ptr <MaterialGroup> MaterialGroupPtr;
+
+
+
+/// Convert lvr2::MeshBuffer to various messages for services
+bool fromMeshBufferToMeshMessages(
+    const lvr2::MeshBufferPtr<Vec>& buffer,
+    mesh_msgs::MeshGeometry& mesh_geometry,
+    mesh_msgs::MeshMaterials& mesh_materials,
+    mesh_msgs::MeshVertexColors& mesh_vertex_colors,
+    boost::optional<std::vector<sensor_msgs::Image>&> texture_cache
+);
 
 /**
  * @brief Convert lvr::MeshBuffer to mesh_msgs::TriangleMesh

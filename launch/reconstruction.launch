@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <node pkg="lvr_ros" type="lvr_ros_reconstruction" name="reconstruction" output="screen">
-    <remap from="pointcloud" to="assembled_cloud"/>
+    <remap from="pointcloud" to="riegl_cloud"/>
     <remap from="mesh" to="assembled_mesh"/>
     <rosparam>
         voxelsize : 0.1                         # Voxelsize of grid used for reconstruction.
@@ -19,21 +19,19 @@
         fillHoles : 30                          # Maximum size for hole filling
         danglingArtifacts : 0                   # Remove dangling artifacts, i.e. remove the n smallest not connected surfaces
         normalThreshold : 0.85                  # (Plane Normal Threshold) Normal threshold for plane optimization. Default 0.85 equals about 3 degrees.
-        smallRegionThreshold : 10               # Threshold for small region removal. If 0 nothing will be deleted.
-        kd : 50                                 # Number of normals used for distance function evaluation
-        ki : 50                                 # Number of normals used in the normal interpolation process
-        kn : 50                                 # Size of k-neighborhood used for normal estimation
+        smallRegionThreshold : 0                # Threshold for small region removal. If 0 nothing will be deleted.
+        kd : 10                                 # Number of normals used for distance function evaluation
+        ki : 10                                 # Number of normals used in the normal interpolation process
+        kn : 5                                  # Size of k-neighborhood used for normal estimation
         minPlaneSize : 7                        # Minimum value for plane optimzation
         retesselate : True                      # Retesselate regions that are in a regression plane. Implies --optimizePlanes.
         lineFusionThreshold : 0.01              # Line Fusion Threshold for fusing line segments while tesselating.
-        generateTextures : False                # Generate textures during finalization.
         textureAnalysis : False                 # Enable texture analysis features fo texture matching.
         writeClassificationResult : False       # Write classification results to file 'clusters.clu'
-        texelSize : 0.001                       # Texel size that determines texture resolution.
         classifier : 'PlaneSimpsons'            # Classfier object used to color the mesh.
         depth : 100                             # Maximum recursion depth for region growing.
         recalcNormals : False                   # Always estimate normals, even if normals are already given.
-        threads : 2                             # Number of threads
+        threads : 8                             # Number of threads
         sharpFeatThreshold : 0.9                # Sharp feature threshold when using sharp feature decomposition
         sharpCornThreshold : 0.7                # Sharp corner threshold when using sharp feature decomposition
         ecm : 'QUADRIC'                         # Edge collapse method for mesh reduction. Choose from QUADRIC, QUADRIC_TRI, MELAX, SHORTEST
@@ -45,6 +43,11 @@
         useCrossCorr : False                    # Use texture matching based on cross correlation.
         patternThreshold : 100                  # Threshold for pattern extraction from textures
         minTransformVotes : 3                   # Minimum number of votes to consider a texture transformation as correct
+        vcfp: true                              # Vertex colors from pointcloud
+        generateTextures: true                  # Generate textures
+        texelSize : 0.1                         # Texel size that determines texture resolution.
+        texMinClusterSize : 100                 # Minimum size of a cluster for texture generation, 0 = no limit
+        texMaxClusterSize : 0                   # Maximum size of a cluster for texture generation, 0 = no limit
     </rosparam>
   </node>
 </launch>
