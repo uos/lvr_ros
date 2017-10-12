@@ -12,6 +12,7 @@ set(PACKAGE_DEPENDENCIES
   message_runtime
   roscpp
   sensor_msgs
+  hyperspectral_calibration
 )
 
 find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})
@@ -25,6 +26,8 @@ add_action_files(
   action
   FILES
   Reconstruct.action
+  SendCloud.action
+  StartReconstruction.action
 )
 
 find_path(OPENGL_INC gl.h /usr/include/GL)
@@ -88,15 +91,23 @@ target_link_libraries(${PROJECT_NAME}_reconstruction
     ${PCL_LIBRARIES}
 )
 
+add_executable(${PROJECT_NAME}_remote_reconstruction_client
+    src/remote_reconstruction_client.cpp
+)
+
 add_executable(${PROJECT_NAME}_remote_reconstruction
   src/colors.cpp
   src/conversions.cpp
-  src/reconstruction.cpp
   src/remote_reconstruction.cpp
 )
 target_link_libraries(${PROJECT_NAME}_remote_reconstruction
     ${catkin_LIBRARIES}
     ${LVR_LIBRARIES}
+    ${PCL_LIBRARIES}
+)
+
+target_link_libraries(${PROJECT_NAME}_remote_reconstruction_client
+    ${catkin_LIBRARIES}
     ${PCL_LIBRARIES}
 )
 
