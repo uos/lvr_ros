@@ -44,6 +44,11 @@ include_directories(${OPENGL_INC})
 find_package(PCL 1.2 REQUIRED)
 include_directories(SYSTEM ${PCL_INCLUDE_DIRS})
 
+find_package(OpenCL)
+if(OPENCL_FOUND)
+    message(STATUS "OpenCL Libraries: ${OpenCL_LIBRARIES}")
+endif()
+
 ### compile with c++11
 if ("${CMAKE_VERSION}" VERSION_LESS "3.1")
   if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
@@ -93,11 +98,16 @@ add_executable(${PROJECT_NAME}_reconstruction
   src/conversions.cpp
   src/reconstruction.cpp
 )
+
 target_link_libraries(${PROJECT_NAME}_reconstruction
     ${catkin_LIBRARIES}
     ${LVR_LIBRARIES}
     ${PCL_LIBRARIES}
 )
+
+if(OPENCL_FOUND)
+    target_compile_definitions(${PROJECT_NAME}_reconstruction PRIVATE OPENCL_FOUND=1)
+endif()
 
 add_executable(${PROJECT_NAME}_debug
     src/debug.cpp
