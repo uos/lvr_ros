@@ -37,4 +37,3 @@ coherenceThreshold          : 50              # Coherence threshold for texture 
 useCrossCorr                : False           # Use texture matching based on cross correlation.
 patternThreshold            : 100             # Threshold for pattern extraction from textures
 minTransformVotes           : 3               # Minimum number of votes to consider a texture transformation as correct
-
