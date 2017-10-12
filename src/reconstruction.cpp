@@ -304,10 +304,44 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
     // Calc normals for vertices
     auto vertexNormals = calcVertexNormals(mesh, faceNormals, *surface);
 
-    lvr2::FinalizeAlgorithm <Vec> finalize;
-    finalize.setNormalData(vertexNormals);
+    // Prepare color data for finalizing
+    auto vertexColors = calcColorFromPointCloud(mesh, surface);
 
-    mesh_buffer = finalize.apply(mesh);
+    // Prepare finalize algorithm
+    lvr2::ClusterFlatteningFinalizer<Vec> finalize(clusterBiMap);
+    finalize.setVertexNormals(vertexNormals);
+    if (vertexColors)
+    {
+        finalize.setVertexColors(*vertexColors);
+    }
+
+    // Materializer for face materials (colors and/or textures)
+    lvr2::Materializer<Vec> materializer(
+        mesh,
+        clusterBiMap,
+        faceNormals,
+        *surface
+    );
+
+    // When using textures ...
+    if (config.generateTextures)
+    {
+        // Set texturizer
+        lvr2::Texturizer<Vec> texturizer(
+            config.texelSize,
+            config.texMinClusterSize,
+            config.texMaxClusterSize
+        );
+        materializer.setTexturizer(texturizer);
+    }
+    // Generate materials
+    lvr2::MaterializerResult<Vec> matResult = materializer.generateMaterials();
+    // Add data to finalize algorithm
+    finalize.setMaterializerResult(matResult);
+
+    // Apply finalize algorithm
+    // FinalizeAlgorithm will generate a lvr2::MeshBuffer, which for now will be converted back to old lvr::MeshBuffer
+    mesh_buffer = (*finalize.apply(mesh).get()).toOldBuffer();
 
     ROS_INFO_STREAM("Reconstruction finished!");
     return true;
