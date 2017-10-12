@@ -300,7 +300,10 @@ bool Reconstruction::createMeshMessageFromPointCloud(
     return true;
 }
 
-bool Reconstruction::createMeshBufferFromPointBuffer(PointBufferPtr& point_buffer, lvr2::MeshBufferPtr<Vec>& mesh_buffer)
+bool Reconstruction::createMeshBufferFromPointBuffer(
+    PointBufferPtr& point_buffer,
+    lvr2::MeshBufferPtr<Vec>& mesh_buffer
+)
 {
     // Create a point cloud manager
     string pcm_name = config.pcm;
