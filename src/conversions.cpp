@@ -34,6 +34,161 @@
 namespace lvr_ros
 {
 
+
+bool fromMeshBufferToMeshMessages(
+    const lvr2::MeshBufferPtr<Vec>& buffer,
+    mesh_msgs::MeshGeometry& mesh_geometry,
+    mesh_msgs::MeshMaterials& mesh_materials,
+    mesh_msgs::MeshVertexColors& mesh_vertex_colors,
+    boost::optional<std::vector<sensor_msgs::Image>&> texture_cache
+)
+{
+    unsigned int n_vertices = buffer->getVertices().size() / 3;
+    unsigned int n_faces = buffer->getFaceIndices().size() / 3;
+    unsigned int n_clusters = buffer->getClusterFaceIndices().size();
+    unsigned int n_materials = buffer->getMaterials().size();
+    unsigned int n_textures = buffer->getTextures().size();
+    unsigned int n_vertex_colors = buffer->getVertexColors().size();
+
+    // Copy vertices
+    mesh_geometry.vertices.resize(n_vertices);
+    auto buffer_vertices = buffer->getVertices();
+    for (unsigned int i = 0; i < n_vertices; i++)
+    {
+        mesh_geometry.vertices[i].x = buffer_vertices[i * 3];
+        mesh_geometry.vertices[i].y = buffer_vertices[i * 3 + 1];
+        mesh_geometry.vertices[i].z = buffer_vertices[i * 3 + 2];
+    }
+    buffer_vertices.clear();
+
+    // Copy faces
+    auto buffer_faces = buffer->getFaceIndices();
+    mesh_geometry.faces.resize(n_faces);
+    for (unsigned int i = 0; i < n_faces; i++)
+    {
+        mesh_geometry.faces[i].vertex_indices[0] = buffer_faces[i * 3];
+        mesh_geometry.faces[i].vertex_indices[1] = buffer_faces[i * 3 + 1];
+        mesh_geometry.faces[i].vertex_indices[2] = buffer_faces[i * 3 + 2];
+    }
+    buffer_faces.clear();
+
+    // Copy vertex normals
+    auto buffer_vertexnormals = buffer->getVertexNormals();
+    mesh_geometry.vertex_normals.resize(n_vertices);
+    for (unsigned int i = 0; i < n_vertices; i++)
+    {
+        mesh_geometry.vertex_normals[i].x = buffer_vertexnormals[i * 3];
+        mesh_geometry.vertex_normals[i].y = buffer_vertexnormals[i * 3 + 1];
+        mesh_geometry.vertex_normals[i].z = buffer_vertexnormals[i * 3 + 2];
+    }
+    buffer_vertexnormals.clear();
+
+    // Copy clusters
+    auto buffer_clusters = buffer->getClusterFaceIndices();
+    mesh_materials.clusters.resize(n_clusters);
+    for (unsigned int i = 0; i < n_clusters; i++)
+    {
+        int n = buffer_clusters[i].size();
+        mesh_materials.clusters[i].face_indices.resize(n);
+        for (unsigned int j = 0; j < n; j++)
+        {
+            mesh_materials.clusters[i].face_indices[j] = buffer_clusters[i][j];
+        }
+    }
+    buffer_clusters.clear();
+
+    // Copy materials
+    auto buffer_materials = buffer->getMaterials();
+    mesh_materials.materials.resize(n_materials);
+    for (unsigned int i = 0; i < n_materials; i++)
+    {
+        lvr2::Material m = buffer_materials[i];
+        if (m.m_color)
+        {
+            mesh_materials.materials[i].color.r = m.m_color.get()[0]/255.0;
+            mesh_materials.materials[i].color.g = m.m_color.get()[1]/255.0;
+            mesh_materials.materials[i].color.b = m.m_color.get()[2]/255.0;
+            mesh_materials.materials[i].color.a = 1.0;
+        }
+        else
+        {
+            mesh_materials.materials[i].color.r = 1.0;
+            mesh_materials.materials[i].color.g = 1.0;
+            mesh_materials.materials[i].color.b = 1.0;
+            mesh_materials.materials[i].color.a = 1.0;
+        }
+        if (m.m_texture)
+        {
+            mesh_materials.materials[i].has_texture = true;
+            mesh_materials.materials[i].texture_index = (int)m.m_texture.get().idx();
+        }
+        else
+        {
+            mesh_materials.materials[i].has_texture = false;
+            mesh_materials.materials[i].texture_index = 0;
+        }
+    }
+    buffer_materials.clear();
+
+    // Copy cluster material indices
+    auto buffer_cluster_materials = buffer->getClusterMaterialIndices();
+    mesh_materials.cluster_materials.resize(n_clusters);
+    for (unsigned int i = 0; i < n_clusters; i++)
+    {
+        mesh_materials.cluster_materials[i] = buffer_cluster_materials[i];
+    }
+    buffer_cluster_materials.clear();
+
+    // Copy vertex tex coords
+    auto buffer_texcoords = buffer->getVertexTextureCoordinates();
+    mesh_materials.vertex_tex_coords.resize(n_vertices);
+    for (unsigned int i = 0; i < n_vertices; i++)
+    {
+        mesh_materials.vertex_tex_coords[i].u = buffer_texcoords[i * 3];
+        mesh_materials.vertex_tex_coords[i].v = buffer_texcoords[i * 3 + 1];
+    }
+    buffer_texcoords.clear();
+
+    // Copy vertex colors
+    if (n_vertex_colors > 0)
+    {
+        auto buffer_vertex_colors = buffer->getVertexColors();
+        mesh_vertex_colors.vertex_colors.resize(n_vertices);
+        for (unsigned int i = 0; i < n_vertices; i++)
+        {
+            float r = buffer_vertex_colors[i * 3]/255.0;
+            mesh_vertex_colors.vertex_colors[i].r = r;
+            mesh_vertex_colors.vertex_colors[i].g = buffer_vertex_colors[i * 3 + 1]/255.0;
+            mesh_vertex_colors.vertex_colors[i].b = buffer_vertex_colors[i * 3 + 2]/255.0;
+            mesh_vertex_colors.vertex_colors[i].a = 1.0;
+        }
+        buffer_vertex_colors.clear();
+    }
+
+    // If texture cache is available, cache textures in given vector
+    if (texture_cache)
+    {
+        auto buffer_textures = buffer->getTextures();
+        texture_cache.get().resize(n_textures);
+        for (unsigned int i = 0; i < n_textures; i++)
+        {
+            sensor_msgs::Image image;
+            sensor_msgs::fillImage(
+                image,
+                "rgb8",
+                buffer_textures[i].m_height,
+                buffer_textures[i].m_width,
+                3,
+                buffer_textures[i].m_data
+            );
+            texture_cache.get().at(i) = image;
+        }
+        buffer_textures.clear();
+    }
+
+    return true;
+}
+
 bool fromMeshBufferToTriangleMesh(const lvr::MeshBufferPtr& buffer, mesh_msgs::TriangleMesh& mesh)
 {
     return fromMeshBufferToTriangleMesh(*buffer, mesh);

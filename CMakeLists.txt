@@ -27,6 +27,17 @@ add_action_files(
   Reconstruct.action
 )
 
+add_service_files(
+  DIRECTORY
+  service
+  FILES
+  GetGeometry.srv
+  GetMaterials.srv
+  GetTexture.srv
+  GetUUID.srv
+  GetVertexColors.srv
+)
+
 find_path(OPENGL_INC gl.h /usr/include/GL)
 include_directories(${OPENGL_INC})
 

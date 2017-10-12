@@ -27,6 +27,11 @@
 
 using std::make_shared;
 
+
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+
 #include "lvr_ros/reconstruction.h"
 #include "lvr_ros/conversions.h"
 
@@ -68,6 +73,9 @@ using std::make_shared;
 namespace lvr_ros
 {
 
+/**********************************************************************************************************************/
+// Constructor
+
 Reconstruction::Reconstruction()
     : as_(node_handle, "reconstruction", boost::bind(&Reconstruction::reconstruct, this, _1), false)
 {
@@ -80,22 +88,38 @@ Reconstruction::Reconstruction()
         this
     );
     mesh_publisher = node_handle.advertise<mesh_msgs::TriangleMeshStamped>("/mesh", 1);
+    mesh_geometry_publisher = node_handle.advertise<mesh_msgs::MeshGeometryStamped>("/mesh_geometry", 1);
 
-    // setup dynamic reconfigure
+    // Setup dynamic reconfigure
     reconfigure_server_ptr = DynReconfigureServerPtr(new DynReconfigureServer(nh));
     callback_type = boost::bind(&Reconstruction::reconfigureCallback, this, _1, _2);
     reconfigure_server_ptr->setCallback(callback_type);
 
-    // start action server
+    // Start action server
     as_.start();
+
+    // Start services
+    srv_get_geometry_ = node_handle.advertiseService("get_geometry", &Reconstruction::service_getGeometry, this);
+    srv_get_materials_ = node_handle.advertiseService("get_materials", &Reconstruction::service_getMaterials, this);
+    srv_get_texture_ = node_handle.advertiseService("get_texture", &Reconstruction::service_getTexture, this);
+    srv_get_uuid_ = node_handle.advertiseService("get_uuid", &Reconstruction::service_getUUID, this);
+    srv_get_vertex_colors_ = node_handle.advertiseService(
+        "get_vertex_colors",
+        &Reconstruction::service_getVertexColors,
+        this
+    );
+
 }
+
+/**********************************************************************************************************************/
+// Actions & Services
 
 void Reconstruction::reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal)
 {
     try
     {
         lvr_ros::ReconstructResult result;
-        createMesh(goal->cloud, result.mesh);
+        createMeshMessageFromPointCloud(goal->cloud, result.mesh);
         as_.setSucceeded(result, "Published mesh.");
     }
     catch(std::exception& e)
@@ -105,11 +129,82 @@ void Reconstruction::reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal)
     }
 }
 
+bool Reconstruction::service_getGeometry(
+    lvr_ros::GetGeometry::Request& req,
+    lvr_ros::GetGeometry::Response& res
+)
+{
+    if (req.uuid != cache_uuid)
+    {
+        return false;
+    }
+    res.mesh_geometry_stamped = cache_mesh_geometry_stamped;
+    return true;
+}
+
+bool Reconstruction::service_getMaterials(
+    lvr_ros::GetMaterials::Request& req,
+    lvr_ros::GetMaterials::Response& res
+)
+{
+    if (req.uuid != cache_uuid)
+    {
+        return false;
+    }
+    res.mesh_materials_stamped = cache_mesh_materials_stamped;
+    return true;
+}
+
+bool Reconstruction::service_getTexture(
+    lvr_ros::GetTexture::Request& req,
+    lvr_ros::GetTexture::Response& res
+)
+{
+    if (req.uuid != cache_uuid || req.texture_index > cache_textures.size() - 1)
+    {
+        return false;
+    }
+    res.texture = cache_textures.at(req.texture_index);
+    return true;
+}
+
+bool Reconstruction::service_getVertexColors(
+    lvr_ros::GetVertexColors::Request& req,
+    lvr_ros::GetVertexColors::Response& res
+)
+{
+    if (req.uuid != cache_uuid)
+    {
+        return false;
+    }
+    res.mesh_vertex_colors_stamped = cache_mesh_vertex_colors_stamped;
+    return true;
+}
+
+bool Reconstruction::service_getUUID(
+    lvr_ros::GetUUID::Request& req,
+    lvr_ros::GetUUID::Response& res
+)
+{
+    res.uuid = cache_uuid;
+    return true;
+}
+
+/**********************************************************************************************************************/
+// Callbacks
+
 void Reconstruction::pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud)
 {
     mesh_msgs::TriangleMeshStamped mesh;
-    createMesh(*cloud, mesh);
+    if (!createMeshMessageFromPointCloud(*cloud, mesh))
+    {
+        ROS_ERROR_STREAM("Error in PointCloud callback");
+    }
+
+    // Reconstruction is done, publish TriangleMesh (deprecated!)
     mesh_publisher.publish(mesh);
+    // .. and also publish MeshGeometry (new! use this)
+    mesh_geometry_publisher.publish(cache_mesh_geometry_stamped);
 }
 
 void Reconstruction::reconfigureCallback(lvr_ros::ReconstructionConfig& config, uint32_t level)
@@ -117,13 +212,30 @@ void Reconstruction::reconfigureCallback(lvr_ros::ReconstructionConfig& config, 
     this->config = config;
 }
 
-bool Reconstruction::createMesh(
+/**********************************************************************************************************************/
+// Reconstruction Logic
+
+bool Reconstruction::createMeshMessageFromPointCloud(
     const sensor_msgs::PointCloud2& cloud,
     mesh_msgs::TriangleMeshStamped& mesh_msg
 )
 {
+
+    /*
+     * This method will generate
+     *   - a TriangleMesh message
+     *       - this message will be published in the callback or action function that is calling this method
+     *   - a MeshGeometry message and all corresponding MeshAttribute messages
+     *       - these messages will be cached and will be available via a service
+     *
+     * Please note: For future versions, it is not intended to keep both messages around. TriangleMesh will be
+     * discontinued in favor of the new message structure. To ensure a smooth transition between both APIs, this
+     * version of LVR_ROS will be able to generate both messages.
+     */
+
+
     PointBufferPtr point_buffer_ptr(new PointBuffer);
-    lvr::MeshBufferPtr mesh_buffer_ptr(new lvr::MeshBuffer);
+    lvr2::MeshBufferPtr<Vec> mesh_buffer_ptr(new lvr2::MeshBuffer<Vec>);
 
     if (!lvr_ros::fromPointCloud2ToPointBuffer(cloud, *point_buffer_ptr))
     {
@@ -133,12 +245,12 @@ bool Reconstruction::createMesh(
         );
         return false;
     }
-    if (!createMesh(point_buffer_ptr, mesh_buffer_ptr))
+    if (!createMeshBufferFromPointBuffer(point_buffer_ptr, mesh_buffer_ptr))
     {
         ROS_ERROR_STREAM("Reconstruction failed!");
         return false;
     }
-    if (!lvr_ros::fromMeshBufferToTriangleMesh(mesh_buffer_ptr, mesh_msg.mesh))
+    if (!lvr_ros::fromMeshBufferToTriangleMesh(mesh_buffer_ptr->toOldBuffer(), mesh_msg.mesh))
     {
         ROS_ERROR_STREAM(
             "Could not convert point cloud from \"lvr::MeshBuffer\" "
@@ -146,19 +258,53 @@ bool Reconstruction::createMesh(
         );
         return false;
     }
+    if (!lvr_ros::fromMeshBufferToMeshMessages(
+            mesh_buffer_ptr,
+            cache_mesh_geometry_stamped.mesh_geometry,
+            cache_mesh_materials_stamped.mesh_materials,
+            cache_mesh_vertex_colors_stamped.mesh_vertex_colors,
+            cache_textures
+    ))
+    {
+        ROS_ERROR_STREAM("Could not convert \"lvr2::MeshBuffer\" to mesh messages!");
+        return false;
+    }
 
-    // setting header frame and stamp
+    // Setting header frame and stamp for TriangleMesh
     mesh_msg.header.frame_id = cloud.header.frame_id;
     mesh_msg.header.stamp = cloud.header.stamp;
+
+
+
+    // The following segment will update new MeshGeometry and MeshAttribute messages in cache
+    // These messages will be available via action/service
+    cache_initialized = true;
+
+    // Setting header frame and stamp
+    cache_mesh_geometry_stamped.header.frame_id = cloud.header.frame_id;
+    cache_mesh_geometry_stamped.header.stamp = cloud.header.stamp;
+    cache_mesh_materials_stamped.header.frame_id = cloud.header.frame_id;
+    cache_mesh_materials_stamped.header.stamp = cloud.header.stamp;
+    cache_mesh_vertex_colors_stamped.header.frame_id = cloud.header.frame_id;
+    cache_mesh_vertex_colors_stamped.header.stamp = cloud.header.stamp;
+
+    // Set uuid
+    boost::uuids::uuid boost_uuid = boost::uuids::random_generator()();
+    std::string uuid = boost::lexical_cast<std::string>(boost_uuid);
+    cache_uuid = uuid;
+
+    cache_mesh_geometry_stamped.uuid = uuid;
+    cache_mesh_materials_stamped.uuid = uuid;
+    cache_mesh_vertex_colors_stamped.uuid = uuid;
 
     return true;
 }
 
-bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr& mesh_buffer)
+bool Reconstruction::createMeshBufferFromPointBuffer(PointBufferPtr& point_buffer, lvr2::MeshBufferPtr<Vec>& mesh_buffer)
 {
     // Create a point cloud manager
     string pcm_name = config.pcm;
-    lvr2::PointsetSurfacePtr <Vec> surface;
+    lvr2::PointsetSurfacePtr<Vec> surface;
 
     // Create point set surface object
     if (pcm_name == "PCL")
@@ -341,11 +487,20 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
 
     // Apply finalize algorithm
     // FinalizeAlgorithm will generate a lvr2::MeshBuffer, which for now will be converted back to old lvr::MeshBuffer
-    mesh_buffer = (*finalize.apply(mesh).get()).toOldBuffer();
+    // mesh_buffer = (*finalize.apply(mesh).get()).toOldBuffer();
+
+    // Apply finalize algorithm
+    // Do some weird stuff to convert boost:shared_ptr to std::shared_ptr
+    boost::shared_ptr<lvr2::MeshBuffer<Vec>> meshBufferBoostPtr = finalize.apply(mesh);
+    lvr2::MeshBuffer<Vec> bufferCopy = *meshBufferBoostPtr.get();
+    mesh_buffer = make_shared<lvr2::MeshBuffer<Vec>>(bufferCopy);
 
     ROS_INFO_STREAM("Reconstruction finished!");
     return true;
 }
+
+/**********************************************************************************************************************/
+// Utility & Main
 
 float *Reconstruction::getStatsCoeffs(std::string filename) const
 {
