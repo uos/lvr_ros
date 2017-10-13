@@ -132,6 +132,7 @@ void Reconstruction::reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal)
     {
         lvr_ros::ReconstructResult result;
         createMeshMessageFromPointCloud(goal->cloud, result.mesh);
+        result.uuid = cache_uuid;
         as_.setSucceeded(result, "Published mesh.");
     }
     catch(std::exception& e)
