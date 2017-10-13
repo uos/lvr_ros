@@ -59,7 +59,7 @@ class CloudClient
                 ROS_INFO_STREAM("Cloud sent successfully.");
             }
 
-            if (n_clouds >= 2)
+            if (n_clouds >= 1)
             {
                 sendTrigger();
             }

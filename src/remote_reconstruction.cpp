@@ -6,6 +6,7 @@
 #include "types/types.hpp"
 
 #include <fstream>
+#include <sstream>
 #include <cstdlib>
 #include <actionlib/server/simple_action_server.h>
 #include <sensor_msgs/PointCloud2.h>
@@ -41,6 +42,7 @@ namespace lvr_ros
     static const bfs::path remote_box_direcotry("/tmp/clouds_remote");
     static const bfs::path local_box_direcotry("/tmp/clouds_local");
     static const string trigger_fname = ".start_reconstruction";
+    static const string pose_fname = "pose.xml";
 
 
     class RemoteReconstruction
@@ -150,9 +152,9 @@ namespace lvr_ros
                 return res == 0;
             }
 
-            bool writePose(const string fname, const geometry_msgs::PoseStamped& pose)
+            bool writePose(const geometry_msgs::PoseStamped& pose)
             {
-                ofstream ofs(fname, ios_base::out);
+                ofstream ofs(pose_fname, ios_base::out);
                 if (not ofs)
                 {
                     return false;
@@ -192,7 +194,6 @@ namespace lvr_ros
             }
 
 
-
             void sendCloud(const lvr_ros::SendCloudGoalConstPtr& goal)
             {
                 const sensor_msgs::PointCloud2& cloud = goal->cloud;
@@ -210,28 +211,50 @@ namespace lvr_ros
                     send_as.setAborted();
                     return;
                 }
+                ROS_INFO_STREAM("Saving pose to temporary file...");
+                if (not writePose(goal->pose))
+                {
+                    ROS_ERROR_STREAM("Could not write current pose.");
+                    send_as.setAborted();
+                    return;
+                }
 
-                string command("scp ");
-                command += string(tmp_fname);
-                command += string(" localhost:") + remote_box_direcotry.string();
+                /*******************
+                *  Copy ply file  *
+                *******************/
+                stringstream command;
+                command << "scp ";
+                command << tmp_fname;
+                command << " localhost:" << remote_box_direcotry.string() << ".ply" << " >/dev/null 2>&1";
 
-                ROS_INFO_STREAM("Executing '" << command << "'...");
-                int res = system(command.c_str());
+                ROS_INFO_STREAM("Executing '" << command.str()<< "'...");
+                int res = system(command.str().c_str());
                 if (res != 0)
                 {
                     ROS_ERROR_STREAM("PLY file was not sent successfully. (" << res << ")");
                     send_as.setAborted();
                 } else
                 {
-                    send_as.setSucceeded();
+                    /********************
+                    *  Copy pose file  *
+                    ********************/
+                    command.str(string());
+                    command.clear();
+                    command << "scp " << pose_fname;
+                    command << " localhost:" << remote_box_direcotry.string() << ".xml" <<  ">/dev/null 2>&1";
+
+                    ROS_INFO_STREAM("Executing '" << command.str() << "'...");
+                    int res = system(command.str().c_str());
+                    if (res != 0)
+                    {
+                        ROS_ERROR_STREAM("PLY file was not sent successfully. (" << res << ")");
+                        send_as.setAborted();
+                    } else
+
+                    {
+                        send_as.setSucceeded();
+                    }
                 }
-
-
-            }
-
-
-            void waitForResult()
-            {
 
             }
 
@@ -246,12 +269,13 @@ namespace lvr_ros
                     reconstruct_as.setAborted();
                 } else
                 {
-                    string command("scp ");
-                    command += string(trigger_fname);
-                    command += string(" localhost:") + remote_box_direcotry.string();
+                    stringstream command;
+                    command << "scp ";
+                    command << trigger_fname;
+                    command << " localhost:" << remote_box_direcotry.string();
 
-                    ROS_INFO_STREAM("Executing '" << command << "'...");
-                    int res = system(command.c_str());
+                    ROS_INFO_STREAM("Executing '" << command.str() << "'...");
+                    int res = system(command.str().c_str());
                     if (res != 0)
                     {
                         ROS_ERROR_STREAM("Could not transfer trigger file. (" << res << ")");
@@ -261,8 +285,6 @@ namespace lvr_ros
                         reconstruct_as.setSucceeded();
                     }
                 }
-
-                waitForResult();
             }
 
             void pointCloudCallback(
