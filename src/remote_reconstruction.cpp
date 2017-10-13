@@ -17,6 +17,9 @@
 #include <pcl/io/ply_io.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <boost/filesystem/path.hpp>
+#include <boost/property_tree/ptree.hpp>
+
+namespace pt = boost::property_tree;
 
 namespace lvr_ros
 {
@@ -155,7 +158,15 @@ namespace lvr_ros
                     return false;
                 } else
                 {
-                    return false;
+                    pt::ptree tree;
+                    tree.put("pose.position.x", pose.pose.position.x);
+                    tree.put("pose.position.y", pose.pose.position.y);
+                    tree.put("pose.position.z", pose.pose.position.z);
+                    tree.put("pose.orientation.x", pose.pose.orientation.x);
+                    tree.put("pose.orientation.y", pose.pose.orientation.y);
+                    tree.put("pose.orientation.z", pose.pose.orientation.z);
+                    tree.put("pose.orientation.w", pose.pose.orientation.w);
+                    return true;
                 }
             }
 
