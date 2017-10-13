@@ -35,8 +35,8 @@ namespace lvr_ros
     typedef actionlib::SimpleActionServer<lvr_ros::StartReconstructionAction>
         StartReconstructionActionServer;
 
-    static const bfs::path remote_box_direcotry("/tmp/clouds");
-    static const bfs::path local_box_direcotry("/tmp/clouds");
+    static const bfs::path remote_box_direcotry("/tmp/clouds_remote");
+    static const bfs::path local_box_direcotry("/tmp/clouds_local");
     static const string trigger_fname = ".start_reconstruction";
 
 
@@ -73,6 +73,14 @@ namespace lvr_ros
 
         private:
 
+            /**
+             * @brief Save all dyn_conf parameters. NOTE: When adding/removing
+             * params, you must adjust this function, since there is no way to
+             * simply dump all parameters (you never know the type and
+             * dynamic_reconfigure does not provide documentation)
+             *
+             * @return Success or failure
+             */
             bool writeCurrentConfig()
             {
                 const ReconstructionConfig& config = this->config;
@@ -126,47 +134,29 @@ namespace lvr_ros
                 return true;
             }
 
-
-            void reconfigureCallback(lvr_ros::ReconstructionConfig& config, uint32_t level)
+            bool writePLY(const string& tmp_fname, const sensor_msgs::PointCloud2& cloud) const
             {
-                this->config = config;
-            }
-
-            void sendCloud(const lvr_ros::SendCloudGoalConstPtr& goal)
-            {
-                const sensor_msgs::PointCloud2& cloud = goal->cloud;
                 PointCloud<RieglPoint> pcl_cloud;
                 fromROSMsg<RieglPoint>(cloud, pcl_cloud);
                 // get temporary file to save cloud to
                 ROS_INFO_STREAM("Saving PLY to temporary file...");
-                std::string tmp_fname = std::tmpnam(nullptr);
                 PLYWriter writer;
                 //                             write in binary
                 //                                   |
-                writer.write(tmp_fname, pcl_cloud, true, false);
-                ROS_INFO_STREAM("Saving current params to temporary file...");
-                if (not writeCurrentConfig())
-                {
-                    ROS_ERROR_STREAM("Coudl not write current config.");
-                    send_as.setAborted();
-                }
+                int res = writer.write(tmp_fname, pcl_cloud, true, false);
+                return res == 0;
+            }
 
-                string command("scp ");
-                command += string(tmp_fname);
-                command += string(" localhost:/tmp/clouds");
-
-                ROS_INFO_STREAM("Executing '" << command << "'...");
-                int res = system(command.c_str());
-                if (res != 0)
+            bool writePose(const string fname, const geometry_msgs::PoseStamped& pose)
+            {
+                ofstream ofs(fname, ios_base::out);
+                if (not ofs)
                 {
-                    ROS_ERROR_STREAM("PLY file was not sent successfully. (" << res << ")");
-                    send_as.setAborted();
+                    return false;
                 } else
                 {
-                    send_as.setSucceeded();
+                    return false;
                 }
-
-
             }
 
             bool writeTriggerFile()
@@ -184,6 +174,57 @@ namespace lvr_ros
             }
 
 
+
+            void reconfigureCallback(lvr_ros::ReconstructionConfig& config, uint32_t level)
+            {
+                this->config = config;
+            }
+
+
+
+            void sendCloud(const lvr_ros::SendCloudGoalConstPtr& goal)
+            {
+                const sensor_msgs::PointCloud2& cloud = goal->cloud;
+                std::string tmp_fname = std::tmpnam(nullptr);
+                if (not writePLY(tmp_fname, cloud))
+                {
+                    ROS_ERROR_STREAM("Coudl not write PLY.");
+                    send_as.setAborted();
+                    return;
+                }
+                ROS_INFO_STREAM("Saving current params to temporary file...");
+                if (not writeCurrentConfig())
+                {
+                    ROS_ERROR_STREAM("Could not write current config.");
+                    send_as.setAborted();
+                    return;
+                }
+
+                string command("scp ");
+                command += string(tmp_fname);
+                command += string(" localhost:") + remote_box_direcotry.string();
+
+                ROS_INFO_STREAM("Executing '" << command << "'...");
+                int res = system(command.c_str());
+                if (res != 0)
+                {
+                    ROS_ERROR_STREAM("PLY file was not sent successfully. (" << res << ")");
+                    send_as.setAborted();
+                } else
+                {
+                    send_as.setSucceeded();
+                }
+
+
+            }
+
+
+            void waitForResult()
+            {
+
+            }
+
+
             void startReconstruction(
                     const lvr_ros::StartReconstructionGoalConstPtr& goal
             )
@@ -196,7 +237,7 @@ namespace lvr_ros
                 {
                     string command("scp ");
                     command += string(trigger_fname);
-                    command += string(" localhost:/tmp/clouds");
+                    command += string(" localhost:") + remote_box_direcotry.string();
 
                     ROS_INFO_STREAM("Executing '" << command << "'...");
                     int res = system(command.c_str());
@@ -209,6 +250,8 @@ namespace lvr_ros
                         reconstruct_as.setSucceeded();
                     }
                 }
+
+                waitForResult();
             }
 
             void pointCloudCallback(
