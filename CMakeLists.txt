@@ -12,7 +12,10 @@ set(PACKAGE_DEPENDENCIES
   message_runtime
   roscpp
   sensor_msgs
+  geometry_msgs
   hyperspectral_calibration
+  move_base_flex
+  tf
 )
 
 find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})
@@ -61,6 +64,7 @@ generate_messages(
   actionlib_msgs
   mesh_msgs
   sensor_msgs
+  geometry_msgs
 )
 
 catkin_package(
