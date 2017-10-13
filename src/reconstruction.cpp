@@ -132,6 +132,7 @@ void Reconstruction::reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal)
     {
         lvr_ros::ReconstructResult result;
         createMeshMessageFromPointCloud(goal->cloud, result.mesh);
+        result.uuid = cache_uuid;
         as_.setSucceeded(result, "Published mesh.");
     }
     catch(std::exception& e)
@@ -146,7 +147,7 @@ bool Reconstruction::service_getGeometry(
     lvr_ros::GetGeometry::Response& res
 )
 {
-    if (req.uuid != cache_uuid)
+    if (!cache_initialized || req.uuid != cache_uuid)
     {
         return false;
     }
@@ -159,7 +160,7 @@ bool Reconstruction::service_getMaterials(
     lvr_ros::GetMaterials::Response& res
 )
 {
-    if (req.uuid != cache_uuid)
+    if (!cache_initialized || req.uuid != cache_uuid)
     {
         return false;
     }
@@ -172,7 +173,7 @@ bool Reconstruction::service_getTexture(
     lvr_ros::GetTexture::Response& res
 )
 {
-    if (req.uuid != cache_uuid || req.texture_index > cache_textures.size() - 1)
+    if (!cache_initialized || req.uuid != cache_uuid || req.texture_index > cache_textures.size() - 1)
     {
         return false;
     }
@@ -185,7 +186,7 @@ bool Reconstruction::service_getVertexColors(
     lvr_ros::GetVertexColors::Response& res
 )
 {
-    if (req.uuid != cache_uuid)
+    if (!cache_initialized || req.uuid != cache_uuid)
     {
         return false;
     }
@@ -198,6 +199,10 @@ bool Reconstruction::service_getUUID(
     lvr_ros::GetUUID::Response& res
 )
 {
+    if (!cache_initialized)
+    {
+        return false;
+    }
     res.uuid = cache_uuid;
     return true;
 }
@@ -285,8 +290,6 @@ bool Reconstruction::createMeshMessageFromPointCloud(
     // Setting header frame and stamp for TriangleMesh
     mesh_msg.header.frame_id = cloud.header.frame_id;
     mesh_msg.header.stamp = cloud.header.stamp;
-
-
 
     // The following segment will update new MeshGeometry and MeshAttribute messages in cache
     // These messages will be available via action/service
