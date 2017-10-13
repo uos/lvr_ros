@@ -41,7 +41,8 @@ Display::Display()
     // Publisher
     mesh_geometry_publisher = node_handle.advertise<mesh_msgs::MeshGeometryStamped>("/display_mesh_geometry", 10);
     mesh_materials_publisher = node_handle.advertise<mesh_msgs::MeshMaterialsStamped>("/display_mesh_materials", 10);
-    mesh_vertex_colors_publisher = node_handle.advertise<mesh_msgs::MeshVertexColorsStamped>("/display_mesh_vertex_colors", 10);
+    mesh_vertex_colors_publisher = node_handle.advertise<mesh_msgs::MeshVertexColorsStamped>(
+        "/display_mesh_vertex_colors", 10);
     mesh_texture_publisher = node_handle.advertise<sensor_msgs::Image>("/display_mesh_textures", 1000);
 
     // Service clients
