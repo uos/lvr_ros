@@ -8,6 +8,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
+#include <string>
 #include <actionlib/server/simple_action_server.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <ros/ros.h>
@@ -19,6 +20,10 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <boost/filesystem/path.hpp>
 #include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/xml_parser.hpp>
+
+// ansi escape for white on black
+#define CMD_COLOR(stuff) ("\033[37;40m") << (stuff) << ("\033[0m")
 
 namespace pt = boost::property_tree;
 
@@ -41,8 +46,9 @@ namespace lvr_ros
 
     static const bfs::path remote_box_direcotry("/tmp/clouds_remote");
     static const bfs::path local_box_direcotry("/tmp/clouds_local");
-    static const string trigger_fname = ".start_reconstruction";
-    static const string pose_fname = "pose.xml";
+    static const bfs::path trigger_fname = ".start_reconstruction";
+    static const bfs::path pose_fname = "pose.xml";
+    static const bfs::path config_fname = "remote_reconstruction_config.yaml";
 
 
     class RemoteReconstruction
@@ -89,7 +95,8 @@ namespace lvr_ros
             bool writeCurrentConfig()
             {
                 const ReconstructionConfig& config = this->config;
-                ofstream ofs("remote_reconstruction_config.yaml", ios_base::out);
+                const bfs::path fname = local_box_direcotry / config_fname;
+                ofstream ofs(fname.string(), ios_base::out);
 
                 if (not ofs)
                 {
@@ -144,17 +151,18 @@ namespace lvr_ros
                 PointCloud<RieglPoint> pcl_cloud;
                 fromROSMsg<RieglPoint>(cloud, pcl_cloud);
                 // get temporary file to save cloud to
-                ROS_INFO_STREAM("Saving PLY to temporary file...");
                 PLYWriter writer;
                 //                             write in binary
                 //                                   |
                 int res = writer.write(tmp_fname, pcl_cloud, true, false);
+                ROS_INFO_STREAM("Result: " << res);
                 return res == 0;
             }
 
             bool writePose(const geometry_msgs::PoseStamped& pose)
             {
-                ofstream ofs(pose_fname, ios_base::out);
+                const bfs::path fname = local_box_direcotry / pose_fname;
+                ofstream ofs(fname.string(), ios_base::out);
                 if (not ofs)
                 {
                     return false;
@@ -168,13 +176,15 @@ namespace lvr_ros
                     tree.put("pose.orientation.y", pose.pose.orientation.y);
                     tree.put("pose.orientation.z", pose.pose.orientation.z);
                     tree.put("pose.orientation.w", pose.pose.orientation.w);
+                    pt::xml_parser::write_xml(fname.string(), tree);
                     return true;
                 }
             }
 
             bool writeTriggerFile()
             {
-                ofstream ofs(trigger_fname, ios_base::out);
+                const bfs::path fname = local_box_direcotry / trigger_fname;
+                ofstream ofs(fname.string(), ios_base::out);
                 if (not ofs)
                 {
                     return false;
@@ -197,10 +207,11 @@ namespace lvr_ros
             void sendCloud(const lvr_ros::SendCloudGoalConstPtr& goal)
             {
                 const sensor_msgs::PointCloud2& cloud = goal->cloud;
-                std::string tmp_fname = std::tmpnam(nullptr);
-                if (not writePLY(tmp_fname, cloud))
+                bfs::path tmp_fname = local_box_direcotry / bfs::path(to_string(cloud.header.seq) + string(".ply"));
+                ROS_INFO_STREAM("Saving PLY to " << tmp_fname << "...");
+                if (not writePLY(tmp_fname.string(), cloud))
                 {
-                    ROS_ERROR_STREAM("Coudl not write PLY.");
+                    ROS_ERROR_STREAM("Could not write PLY.");
                     send_as.setAborted();
                     return;
                 }
@@ -224,10 +235,10 @@ namespace lvr_ros
                 *******************/
                 stringstream command;
                 command << "scp ";
-                command << tmp_fname;
-                command << " localhost:" << remote_box_direcotry.string() << ".ply" << " >/dev/null 2>&1";
+                command << tmp_fname.string();
+                command << " localhost:" << remote_box_direcotry.string();
 
-                ROS_INFO_STREAM("Executing '" << command.str()<< "'...");
+                ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
                 int res = system(command.str().c_str());
                 if (res != 0)
                 {
@@ -240,10 +251,10 @@ namespace lvr_ros
                     ********************/
                     command.str(string());
                     command.clear();
-                    command << "scp " << pose_fname;
-                    command << " localhost:" << remote_box_direcotry.string() << ".xml" <<  ">/dev/null 2>&1";
+                    command << "scp " << local_box_direcotry / pose_fname;
+                    command << " localhost:" << remote_box_direcotry.string() / bfs::path(to_string(cloud.header.seq)) << ".xml";
 
-                    ROS_INFO_STREAM("Executing '" << command.str() << "'...");
+                    ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
                     int res = system(command.str().c_str());
                     if (res != 0)
                     {
@@ -271,10 +282,10 @@ namespace lvr_ros
                 {
                     stringstream command;
                     command << "scp ";
-                    command << trigger_fname;
+                    command << local_box_direcotry / trigger_fname;
                     command << " localhost:" << remote_box_direcotry.string();
 
-                    ROS_INFO_STREAM("Executing '" << command.str() << "'...");
+                    ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
                     int res = system(command.str().c_str());
                     if (res != 0)
                     {
