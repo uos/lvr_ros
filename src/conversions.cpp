@@ -40,7 +40,8 @@ bool fromMeshBufferToMeshMessages(
     mesh_msgs::MeshGeometry& mesh_geometry,
     mesh_msgs::MeshMaterials& mesh_materials,
     mesh_msgs::MeshVertexColors& mesh_vertex_colors,
-    boost::optional<std::vector<sensor_msgs::Image>&> texture_cache
+    boost::optional<std::vector<mesh_msgs::Texture>&> texture_cache,
+    std::string mesh_uuid
 )
 {
     unsigned int n_vertices = buffer->getVertices().size() / 3;
@@ -181,7 +182,11 @@ bool fromMeshBufferToMeshMessages(
                 3,
                 buffer_textures[i].m_data
             );
-            texture_cache.get().at(i) = image;
+            mesh_msgs::Texture texture;
+            texture.uuid = mesh_uuid;
+            texture.texture_index = i;
+            texture.image = image;
+            texture_cache.get().at(i) = texture;
         }
         buffer_textures.clear();
     }

@@ -243,6 +243,10 @@ bool Reconstruction::createMeshMessageFromPointCloud(
     mesh_msgs::TriangleMeshStamped& mesh_msg
 )
 {
+    // Generate uuid for new mesh
+    boost::uuids::uuid boost_uuid = boost::uuids::random_generator()();
+    std::string uuid = boost::lexical_cast<std::string>(boost_uuid);
+    cache_uuid = uuid;
 
     /*
      * This method will generate
@@ -286,7 +290,8 @@ bool Reconstruction::createMeshMessageFromPointCloud(
             cache_mesh_geometry_stamped.mesh_geometry,
             cache_mesh_materials_stamped.mesh_materials,
             cache_mesh_vertex_colors_stamped.mesh_vertex_colors,
-            cache_textures
+            cache_textures,
+            uuid
     ))
     {
         ROS_ERROR_STREAM("Could not convert \"lvr2::MeshBuffer\" to mesh messages!");
@@ -308,11 +313,6 @@ bool Reconstruction::createMeshMessageFromPointCloud(
     cache_mesh_materials_stamped.header.stamp = cloud.header.stamp;
     cache_mesh_vertex_colors_stamped.header.frame_id = cloud.header.frame_id;
     cache_mesh_vertex_colors_stamped.header.stamp = cloud.header.stamp;
-
-    // Set uuid
-    boost::uuids::uuid boost_uuid = boost::uuids::random_generator()();
-    std::string uuid = boost::lexical_cast<std::string>(boost_uuid);
-    cache_uuid = uuid;
 
     cache_mesh_geometry_stamped.uuid = uuid;
     cache_mesh_materials_stamped.uuid = uuid;

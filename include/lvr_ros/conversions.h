@@ -71,6 +71,7 @@
 #include <mesh_msgs/MeshVertexColorsStamped.h>
 #include <mesh_msgs/VertexTexCoords.h>
 #include <mesh_msgs/Material.h>
+#include <mesh_msgs/Texture.h>
 
 #include <sensor_msgs/point_cloud2_iterator.h>
 
@@ -102,7 +103,8 @@ bool fromMeshBufferToMeshMessages(
     mesh_msgs::MeshGeometry& mesh_geometry,
     mesh_msgs::MeshMaterials& mesh_materials,
     mesh_msgs::MeshVertexColors& mesh_vertex_colors,
-    boost::optional<std::vector<sensor_msgs::Image>&> texture_cache
+    boost::optional<std::vector<mesh_msgs::Texture>&> texture_cache,
+    std::string mesh_uuid
 );
 
 /**
