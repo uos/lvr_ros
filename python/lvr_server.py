@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-from __future__ import unicode_literals, print_function
+from __future__ import print_function
 import time
 import argparse
 from watchdog.observers import Observer
@@ -10,34 +10,39 @@ from os import path, makedirs, unlink, listdir, error
 
 class TriggerFileEventHandler(FileSystemEventHandler):
 
-    def __init__(self, config_name='.lvr_conf.yaml', trigger_name='.start_processing',
-                 box_dir='/tmp/clouds_remote'):
+    def __init__(self, config_name='remote_reconstruction_config.yaml',
+                 trigger_name='.start_reconstruction', box_dir='/tmp/clouds_remote'):
         super(TriggerFileEventHandler, self).__init__()
 
+        self.box_dir = box_dir
         self.trigger_found = self.config_found = False
         self.trigger_name = trigger_name
         self.config_name = config_name
-        self.box_dir = box_dir
+        self.is_executing = False
 
     def delete_all(self):
         for f in listdir(self.box_dir):
-            unlink(f)
+            unlink(path.join(self.box_dir, f))
 
     def on_created(self, event):
-        if event.event_type == 'created':
-            fname = path.basename(event.src_path)
-            if fname == self.trigger_name:
-                self.trigger_found = True
-                print("Found trigger file.")
-            if fname == self.config_name:
-                self.config_found = True
-                print("Found config file.")
+        print("New file: %s" % event.src_path)
+
+        if self.is_executing:
+            return
+
+        fname = path.basename(event.src_path)
+        if fname == self.trigger_name:
+            self.trigger_found = True
+            print("Found trigger file.")
+        if fname == self.config_name:
+            self.config_found = True
+            print("Found config file.")
         if self.trigger_found and self.config_found:
             self.execute()
 
     def execute(self):
+        self.is_executing = True
         print("Now SLAMming and LVRing ... #kthxbye")
-        self.delete_all()
 
 
 def main():
@@ -66,6 +71,8 @@ def main():
             time.sleep(0.5)
     except KeyboardInterrupt:
         observer.stop()
+        print("Cleaning all files.")
+        event_handler.delete_all()
         print('Ok bye.')
 
     observer.join()
