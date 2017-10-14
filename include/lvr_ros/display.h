@@ -38,6 +38,7 @@
 #include <mesh_msgs/MeshVertexColors.h>
 #include <mesh_msgs/MeshVertexColorsStamped.h>
 #include <mesh_msgs/VertexTexCoords.h>
+#include <mesh_msgs/Texture.h>
 
 #include "lvr_ros/GetGeometry.h"
 #include "lvr_ros/GetMaterials.h"
