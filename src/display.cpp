@@ -155,7 +155,7 @@ void Display::processNewGeometry(const mesh_msgs::MeshGeometryStamped mesh_geome
             if (mesh_textures_service_client.call(srv_texture))
             {
                 // Publish texture
-                mesh_texture_publisher.publish((sensor_msgs::Image)srv_texture.response.texture);
+                mesh_texture_publisher.publish((mesh_msgs::Texture)srv_texture.response.texture);
             }
             else
             {
