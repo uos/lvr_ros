@@ -17,13 +17,34 @@
 #include <mesh_msgs/TriangleMeshStamped.h>
 
 #include <pcl/io/ply_io.h>
+#include <pcl/common/transforms.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <boost/filesystem/path.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp>
 
+#include <Eigen/Geometry>
+
 // ansi escape for white on black
 #define CMD_COLOR(stuff) ("\033[37;40m") << (stuff) << ("\033[0m")
+
+/**
+ * @brief Perform coordinate transform from ROS/PCL to 3DTK
+ */
+static pcl::PointCloud<RieglPoint>::Ptr convert_coords_ros_3dtk(pcl::PointCloud<RieglPoint>& cloud)
+{
+    using namespace Eigen;
+    using namespace pcl;
+    Vector3f y_3dtk, z_3dtk, origin;
+    origin << 0, 0, 0;
+    y_3dtk << 1, 0, 0;
+    z_3dtk << 0, 0, 1;
+    Affine3f coord_transform;
+    getTransformationFromTwoUnitVectorsAndOrigin(y_3dtk, z_3dtk, origin, coord_transform);
+    pcl::PointCloud<RieglPoint>::Ptr transformed_cloud(new pcl::PointCloud<RieglPoint>);
+    pcl::transformPointCloud(cloud, *transformed_cloud, coord_transform);
+    return transformed_cloud;
+}
 
 namespace pt = boost::property_tree;
 
@@ -44,11 +65,11 @@ namespace lvr_ros
     typedef actionlib::SimpleActionServer<lvr_ros::StartReconstructionAction>
         StartReconstructionActionServer;
 
-    static const bfs::path remote_box_direcotry("/tmp/clouds_remote");
-    static const bfs::path local_box_direcotry("/tmp/clouds_local");
+    static const bfs::path remote_box_directory("/tmp/clouds_remote");
+    static const bfs::path local_box_directory("/tmp/clouds_local");
     static const bfs::path trigger_fname = ".start_reconstruction";
-    static const bfs::path pose_fname = "pose.xml";
-    static const bfs::path config_fname = "remote_reconstruction_config.yaml";
+    static const bfs::path pose_fname    = "pose.xml";
+    static const bfs::path config_fname  = "remote_reconstruction_config.yaml";
 
 
     class RemoteReconstruction
@@ -76,9 +97,9 @@ namespace lvr_ros
             send_as.start();
             reconstruct_as.start();
 
-            if (not bfs::exists(remote_box_direcotry))
+            if (not bfs::exists(remote_box_directory))
             {
-                bfs::create_directory(remote_box_direcotry);
+                bfs::create_directory(remote_box_directory);
             }
         }
 
@@ -95,7 +116,7 @@ namespace lvr_ros
             bool writeCurrentConfig()
             {
                 const ReconstructionConfig& config = this->config;
-                const bfs::path fname = local_box_direcotry / config_fname;
+                const bfs::path fname = local_box_directory / config_fname;
                 ofstream ofs(fname.string(), ios_base::out);
 
                 if (not ofs)
@@ -150,6 +171,8 @@ namespace lvr_ros
             {
                 PointCloud<RieglPoint> pcl_cloud;
                 fromROSMsg<RieglPoint>(cloud, pcl_cloud);
+                // convert to 3dtk coordinate system for SLAM
+                pcl_cloud = *convert_coords_ros_3dtk(pcl_cloud);
                 // get temporary file to save cloud to
                 PLYWriter writer;
                 //                             write in binary
@@ -161,7 +184,7 @@ namespace lvr_ros
 
             bool writePose(const geometry_msgs::PoseStamped& pose)
             {
-                const bfs::path fname = local_box_direcotry / pose_fname;
+                const bfs::path fname = local_box_directory / pose_fname;
                 ofstream ofs(fname.string(), ios_base::out);
                 if (not ofs)
                 {
@@ -183,7 +206,7 @@ namespace lvr_ros
 
             bool writeTriggerFile()
             {
-                const bfs::path fname = local_box_direcotry / trigger_fname;
+                const bfs::path fname = local_box_directory / trigger_fname;
                 ofstream ofs(fname.string(), ios_base::out);
                 if (not ofs)
                 {
@@ -207,7 +230,7 @@ namespace lvr_ros
             void sendCloud(const lvr_ros::SendCloudGoalConstPtr& goal)
             {
                 const sensor_msgs::PointCloud2& cloud = goal->cloud;
-                bfs::path tmp_fname = local_box_direcotry / bfs::path(to_string(cloud.header.seq) + string(".ply"));
+                bfs::path tmp_fname = local_box_directory / bfs::path(to_string(cloud.header.seq) + string(".ply"));
                 ROS_INFO_STREAM("Saving PLY to " << tmp_fname << "...");
                 if (not writePLY(tmp_fname.string(), cloud))
                 {
@@ -223,6 +246,7 @@ namespace lvr_ros
                     return;
                 }
                 ROS_INFO_STREAM("Saving pose to temporary file...");
+                std::cout << goal->pose << std::endl;
                 if (not writePose(goal->pose))
                 {
                     ROS_ERROR_STREAM("Could not write current pose.");
@@ -235,8 +259,8 @@ namespace lvr_ros
                 *******************/
                 stringstream command;
                 command << "scp ";
-                command << tmp_fname.string();
-                command << " localhost:" << remote_box_direcotry.string();
+                command << tmp_fname;
+                command << " localhost:" << remote_box_directory;
 
                 ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
                 int res = system(command.str().c_str());
@@ -244,28 +268,25 @@ namespace lvr_ros
                 {
                     ROS_ERROR_STREAM("PLY file was not sent successfully. (" << res << ")");
                     send_as.setAborted();
-                } else
-                {
-                    /********************
-                    *  Copy pose file  *
-                    ********************/
-                    command.str(string());
-                    command.clear();
-                    command << "scp " << local_box_direcotry / pose_fname;
-                    command << " localhost:" << remote_box_direcotry.string() / bfs::path(to_string(cloud.header.seq)) << ".xml";
-
-                    ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
-                    int res = system(command.str().c_str());
-                    if (res != 0)
-                    {
-                        ROS_ERROR_STREAM("PLY file was not sent successfully. (" << res << ")");
-                        send_as.setAborted();
-                    } else
-
-                    {
-                        send_as.setSucceeded();
-                    }
+                    return;
                 }
+                /********************
+                *  Copy pose file  *
+                ********************/
+                command.str(string());
+                command.clear();
+                command << "scp " << local_box_directory / pose_fname;
+                command << " localhost:" << remote_box_directory / bfs::path(to_string(cloud.header.seq)) << ".xml";
+
+                ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
+                res = system(command.str().c_str());
+                if (res != 0)
+                {
+                    ROS_ERROR_STREAM("PLY file was not sent successfully. (" << res << ")");
+                    send_as.setAborted();
+                    return;
+                }
+                send_as.setSucceeded();
 
             }
 
@@ -282,8 +303,8 @@ namespace lvr_ros
                 {
                     stringstream command;
                     command << "scp ";
-                    command << local_box_direcotry / trigger_fname;
-                    command << " localhost:" << remote_box_direcotry.string();
+                    command << local_box_directory / trigger_fname;
+                    command << " localhost:" << remote_box_directory;
 
                     ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
                     int res = system(command.str().c_str());
@@ -293,7 +314,24 @@ namespace lvr_ros
                         reconstruct_as.setAborted();
                     } else
                     {
-                        reconstruct_as.setSucceeded();
+                        /**********************
+                         *  Copy config file  *
+                         **********************/
+                        command.str(string());
+                        command.clear();
+                        command << "scp " << local_box_directory / config_fname;
+                        command << " localhost:" << remote_box_directory;
+
+                        ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
+                        res = system(command.str().c_str());
+                        if (res != 0)
+                        {
+                            ROS_ERROR_STREAM("Config file was not sent successfully. (" << res << ")");
+                            send_as.setAborted();
+                        } else
+                        {
+                            reconstruct_as.setSucceeded();
+                        }
                     }
                 }
             }
