@@ -52,6 +52,23 @@ Display::Display()
     mesh_vertex_colors_service_client = node_handle.serviceClient<lvr_ros::GetVertexColors>("get_vertex_colors");
     mesh_textures_service_client = node_handle.serviceClient<lvr_ros::GetTexture>("get_texture");
 
+    int numSubscribers = 0;
+    while (numSubscribers < 1)
+    {
+        ROS_INFO("Waiting for subscribers");
+        ros::Duration(1.0).sleep();
+
+        numSubscribers = mesh_geometry_publisher.getNumSubscribers()
+            + mesh_materials_publisher.getNumSubscribers()
+            + mesh_vertex_colors_publisher.getNumSubscribers()
+            + mesh_texture_publisher.getNumSubscribers();
+
+        if (numSubscribers > 0)
+        {
+            ROS_INFO_STREAM("Found " << numSubscribers << " subscribers");
+        }
+    }
+
     // Once everything is setup, try to get an initial UUID from lvr_ros::reconstruction
     ROS_INFO("Initial service call");
     lvr_ros::GetUUID srv_uuid;
@@ -87,6 +104,38 @@ void Display::meshGeometryCallback(const mesh_msgs::MeshGeometryStamped::ConstPt
 /**********************************************************************************************************************/
 // Publisher logic
 
+void Display::publish()
+{
+    if (publish_flag)
+    {
+        if (has_geom)
+        {
+            mesh_geometry_publisher.publish(cache_geometry);
+            ROS_INFO_STREAM("Published geometry for UUID=" << cache_geometry.uuid);
+        }
+        if (has_mats)
+        {
+            mesh_materials_publisher.publish(cache_materials);
+            ROS_INFO_STREAM("Published materials for UUID=" << cache_materials.uuid);
+        }
+        if (has_vcs)
+        {
+            mesh_vertex_colors_publisher.publish(cache_vertexcolors);
+            ROS_INFO_STREAM("Published vertex colors for UUID=" << cache_vertexcolors.uuid);
+        }
+        if (has_tex)
+        {
+            for (unsigned int i = 0; i < cache_textures.size(); i++)
+            {
+                mesh_texture_publisher.publish(cache_textures.at(i));
+                ROS_INFO_STREAM("Published texture with ID=" << cache_textures.at(i).texture_index << " for UUID="
+                    << cache_textures.at(i).uuid);
+            }
+        }
+        publish_flag = false;
+    }
+}
+
 void Display::processNewUUID(std::string uuid)
 {
     lvr_ros::GetGeometry srv_geometry;
@@ -103,28 +152,34 @@ void Display::processNewUUID(std::string uuid)
 
 void Display::processNewGeometry(const mesh_msgs::MeshGeometryStamped mesh_geometry_stamped)
 {
+    // Reset cache
+    has_geom = false;
+    has_mats = false;
+    has_vcs = false;
+    has_tex = false;
 
     std::string uuid = mesh_geometry_stamped.uuid;
     ROS_INFO_STREAM("Processing mesh with UUID=" << uuid);
+
+    // Cache geometry
+    cache_geometry = mesh_geometry_stamped;
+    has_geom = true;
 
     // New geometry received, now call lvr_ros services to retrieve materials, vertex colors and textures
     lvr_ros::GetMaterials srv_materials;
     lvr_ros::GetVertexColors srv_vertexColors;
     lvr_ros::GetTexture srv_texture;
 
+    // Prepare service calls
     srv_materials.request.uuid = uuid;
     srv_vertexColors.request.uuid = uuid;
     srv_texture.request.uuid = uuid;
 
-    mesh_msgs::MeshMaterialsStamped mesh_materials_stamped;
-    mesh_msgs::MeshVertexColorsStamped mesh_vertex_colors_stamped;
-
     // Call materials service
     if (mesh_materials_service_client.call(srv_materials))
     {
-        mesh_materials_stamped = (mesh_msgs::MeshMaterialsStamped)srv_materials.response.mesh_materials_stamped;
-        // Publish materials
-        mesh_materials_publisher.publish(mesh_materials_stamped);
+        cache_materials = (mesh_msgs::MeshMaterialsStamped)srv_materials.response.mesh_materials_stamped;
+        has_mats = true;
     }
     else
     {
@@ -135,10 +190,8 @@ void Display::processNewGeometry(const mesh_msgs::MeshGeometryStamped mesh_geome
     // Call vertex colors service
     if (mesh_vertex_colors_service_client.call(srv_vertexColors))
     {
-        mesh_vertex_colors_stamped =
-            (mesh_msgs::MeshVertexColorsStamped)srv_vertexColors.response.mesh_vertex_colors_stamped;
-        // Publish vertex colors
-        mesh_vertex_colors_publisher.publish(mesh_vertex_colors_stamped);
+        cache_vertexcolors = (mesh_msgs::MeshVertexColorsStamped)srv_vertexColors.response.mesh_vertex_colors_stamped;
+        has_vcs = true;
     }
     else
     {
@@ -146,27 +199,35 @@ void Display::processNewGeometry(const mesh_msgs::MeshGeometryStamped mesh_geome
         return;
     }
 
-    // Call texture service (multiple time: once for each texture index found in materials)
-    for (unsigned int i = 0; i < mesh_materials_stamped.mesh_materials.materials.size(); i++)
+    if (has_mats)
     {
-        if (mesh_materials_stamped.mesh_materials.materials[i].has_texture)
+        cache_textures.clear();
+        // Call texture service (multiple time: once for each texture index found in materials)
+        for (unsigned int i = 0; i < cache_materials.mesh_materials.materials.size(); i++)
         {
-            srv_texture.request.texture_index = mesh_materials_stamped.mesh_materials.materials[i].texture_index;
-            if (mesh_textures_service_client.call(srv_texture))
+            if (cache_materials.mesh_materials.materials[i].has_texture)
             {
-                // Publish texture
-                mesh_texture_publisher.publish((mesh_msgs::Texture)srv_texture.response.texture);
-            }
-            else
-            {
-                ROS_ERROR("Error while calling GetTexture service");
-                return;
-            }
+                srv_texture.request.texture_index = cache_materials.mesh_materials.materials[i].texture_index;
+                if (mesh_textures_service_client.call(srv_texture))
+                {
+                    cache_textures.push_back((mesh_msgs::Texture)srv_texture.response.texture);
+                }
+                else
+                {
+                    ROS_ERROR("Error while calling GetTexture service");
+                    return;
+                }
 
+            }
+        }
+        if (cache_textures.size() > 0)
+        {
+            has_tex = true;
         }
     }
 
-    ROS_INFO("Successfully distributed mesh messages");
+    publish_flag = true;
+    ROS_INFO("Successfully cached mesh messages");
 }
 
 /**********************************************************************************************************************/
@@ -178,7 +239,13 @@ int main(int argc, char **args)
 {
     ros::init(argc, args, "display");
     lvr_ros::Display display;
-    ros::spin();
+    ros::Rate rate(500);
+    while (ros::ok())
+    {
+        rate.sleep();
+        display.publish();
+        ros::spinOnce();
+    }
 
     return 0;
 }

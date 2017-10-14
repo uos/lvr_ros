@@ -55,6 +55,8 @@ public:
     Display();
     ~Display();
 
+    void publish();
+
 private:
     void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr cloud);
     void meshGeometryCallback(const mesh_msgs::MeshGeometryStamped::ConstPtr mesh_geometry);
@@ -76,6 +78,17 @@ private:
     ros::ServiceClient mesh_materials_service_client;
     ros::ServiceClient mesh_vertex_colors_service_client;
     ros::ServiceClient mesh_textures_service_client;
+
+
+    mesh_msgs::MeshGeometryStamped cache_geometry;
+    mesh_msgs::MeshMaterialsStamped cache_materials;
+    mesh_msgs::MeshVertexColorsStamped cache_vertexcolors;
+    std::vector<mesh_msgs::Texture> cache_textures;
+    bool has_geom = false;
+    bool has_mats = false;
+    bool has_vcs = false;
+    bool has_tex = false;
+    bool publish_flag = false;
 };
 
 } /* namespace lvr_ros */
