@@ -128,6 +128,7 @@ Reconstruction::Reconstruction()
 
 void Reconstruction::reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal)
 {
+    ROS_INFO("Action: Reconstruct");
     try
     {
         lvr_ros::ReconstructResult result;
@@ -147,6 +148,7 @@ bool Reconstruction::service_getGeometry(
     lvr_ros::GetGeometry::Response& res
 )
 {
+    ROS_INFO("Service: Get Geometry");
     if (!cache_initialized || req.uuid != cache_uuid)
     {
         return false;
@@ -160,6 +162,7 @@ bool Reconstruction::service_getMaterials(
     lvr_ros::GetMaterials::Response& res
 )
 {
+    ROS_INFO("Service: Get Materials");
     if (!cache_initialized || req.uuid != cache_uuid)
     {
         return false;
@@ -173,6 +176,7 @@ bool Reconstruction::service_getTexture(
     lvr_ros::GetTexture::Response& res
 )
 {
+    ROS_INFO("Service: Get Texture");
     if (!cache_initialized || req.uuid != cache_uuid || req.texture_index > cache_textures.size() - 1)
     {
         return false;
@@ -186,6 +190,7 @@ bool Reconstruction::service_getVertexColors(
     lvr_ros::GetVertexColors::Response& res
 )
 {
+    ROS_INFO("Service: Get Vertex Colors");
     if (!cache_initialized || req.uuid != cache_uuid)
     {
         return false;
@@ -199,6 +204,7 @@ bool Reconstruction::service_getUUID(
     lvr_ros::GetUUID::Response& res
 )
 {
+    ROS_INFO("Service: Get UUID");
     if (!cache_initialized)
     {
         return false;
@@ -579,7 +585,10 @@ int main(int argc, char **args)
 {
     ros::init(argc, args, "reconstruction");
     lvr_ros::Reconstruction reconstruction;
-    ros::spin();
+    // ros::spin();
 
+
+    ros::MultiThreadedSpinner spinner(4); // Use 4 threads
+    spinner.spin(); // spin() will not return until the node has been shutdown
     return 0;
 }

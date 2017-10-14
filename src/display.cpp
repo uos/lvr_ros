@@ -63,9 +63,8 @@ Display::Display()
     }
     else
     {
-        ROS_INFO("no uuid");
+        ROS_INFO("No initial data available. Waiting for callback to trigger ...");
     }
-    ROS_INFO("call end");
 }
 
 Display::~Display() {}
@@ -75,14 +74,13 @@ Display::~Display() {}
 
 void Display::pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr cloud)
 {
-    ROS_INFO("pointcloud callback");
-
-    // TODO: colorize cloud
+    // ROS_INFO("PointCloud2 received");
+    // TODO: colorize cloud, dann reconstruct action
 }
 
 void Display::meshGeometryCallback(const mesh_msgs::MeshGeometryStamped::ConstPtr mesh_geometry_stamped)
 {
-    ROS_INFO("geometry callback");
+    ROS_INFO("MeshGeometry received");
     processNewGeometry(*mesh_geometry_stamped);
 }
 
@@ -99,7 +97,7 @@ void Display::processNewUUID(std::string uuid)
     }
     else
     {
-        ROS_INFO("error while calling geometry service");
+        ROS_INFO("Error while calling geometry service");
     }
 }
 
