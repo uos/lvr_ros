@@ -179,7 +179,7 @@ bool fromMeshBufferToMeshMessages(
                 "rgb8",
                 buffer_textures[i].m_height,
                 buffer_textures[i].m_width,
-                3,
+                buffer_textures[i].m_width * 3, // step size
                 buffer_textures[i].m_data
             );
             mesh_msgs::Texture texture;
