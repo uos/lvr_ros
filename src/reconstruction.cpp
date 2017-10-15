@@ -246,7 +246,6 @@ bool Reconstruction::createMeshMessageFromPointCloud(
     // Generate uuid for new mesh
     boost::uuids::uuid boost_uuid = boost::uuids::random_generator()();
     std::string uuid = boost::lexical_cast<std::string>(boost_uuid);
-    cache_uuid = uuid;
 
     /*
      * This method will generate
@@ -317,6 +316,8 @@ bool Reconstruction::createMeshMessageFromPointCloud(
     cache_mesh_geometry_stamped.uuid = uuid;
     cache_mesh_materials_stamped.uuid = uuid;
     cache_mesh_vertex_colors_stamped.uuid = uuid;
+
+    cache_uuid = uuid;
 
     return true;
 }
