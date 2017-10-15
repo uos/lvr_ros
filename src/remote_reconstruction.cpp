@@ -15,6 +15,10 @@
 #include <dynamic_reconfigure/server.h>
 #include <mesh_msgs/TriangleMesh.h>
 #include <mesh_msgs/TriangleMeshStamped.h>
+#include <geometry_msgs/Point.h>
+#include <geometry_msgs/Quaternion.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
 
 #include <pcl/io/ply_io.h>
 #include <pcl/common/transforms.h>
@@ -29,22 +33,138 @@
 #define CMD_COLOR(stuff) ("\033[37;40m") << (stuff) << ("\033[0m")
 
 /**
- * @brief Perform coordinate transform from ROS/PCL to 3DTK
+ * @brief Perform coordinate transform from ROS/PCL to 3DTK and vice versa
  */
-static pcl::PointCloud<RieglPoint>::Ptr convert_coords_ros_3dtk(pcl::PointCloud<RieglPoint>& cloud)
+static pcl::PointCloud<RieglPoint>::Ptr convert_coords_ros_3dtk(
+    const pcl::PointCloud<RieglPoint>& cloud,
+    const bool ros_to_3dtk=true
+)
 {
     using namespace Eigen;
     using namespace pcl;
-    Vector3f y_3dtk, z_3dtk, origin;
+    Vector3f y_new, z_new, origin;
     origin << 0, 0, 0;
-    y_3dtk << 1, 0, 0;
-    z_3dtk << 0, 0, 1;
+    if (ros_to_3dtk)
+    {
+        y_new << 0, 0, 1;
+        z_new << 1, 0, 0;
+    } else
+    {
+        y_new << -1, 0, 0;
+        z_new << 0, 1, 0;
+    }
     Affine3f coord_transform;
-    getTransformationFromTwoUnitVectorsAndOrigin(y_3dtk, z_3dtk, origin, coord_transform);
+    getTransformationFromTwoUnitVectorsAndOrigin(y_new, z_new, origin, coord_transform);
     pcl::PointCloud<RieglPoint>::Ptr transformed_cloud(new pcl::PointCloud<RieglPoint>);
     pcl::transformPointCloud(cloud, *transformed_cloud, coord_transform);
     return transformed_cloud;
 }
+
+static geometry_msgs::PoseStamped convert_pose_ros_3dtk(
+    const geometry_msgs::PoseStamped& pose,
+    const bool ros_to_3dtk=true
+)
+{
+    geometry_msgs::Point position = pose.pose.position;
+    geometry_msgs::Quaternion orientation = pose.pose.orientation;
+
+    geometry_msgs::Point new_position;
+    geometry_msgs::Quaternion new_orientation;
+
+    /*************************
+    *  Convert orientation  *
+    *************************/
+    tf2::Quaternion q(orientation.x, orientation.y, orientation.z, orientation.w);
+    if (ros_to_3dtk)
+    {
+        double roll, pitch, yaw;
+        // TODO: Maybe flip sign of rotation round x-axis (in 3dtk)
+        tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
+        tf2::Quaternion new_q;
+        new_q.setRPY(pitch, yaw, roll);
+        new_orientation.x = new_q[0];
+        new_orientation.y = new_q[1];
+        new_orientation.z = new_q[2];
+        new_orientation.w = new_q[3];
+    } else
+    {
+        double roll, pitch, yaw;
+        tf2::Matrix3x3(q).getRPY(pitch, yaw, roll);
+        tf2::Quaternion new_q;
+        new_q.setRPY(roll, pitch, yaw);
+        new_orientation.x = new_q[0];
+        new_orientation.y = new_q[1];
+        new_orientation.z = new_q[2];
+        new_orientation.w = new_q[3];
+    }
+    /**********************
+    *  Convert position  *
+    **********************/
+    if (ros_to_3dtk)
+    {
+        new_position.x = -position.y;
+        new_position.y = position.z;
+        new_position.z = position.x;
+    } else
+    {
+        new_position.x = position.z;
+        new_position.y = -position.x;
+        new_position.z = position.y;
+    }
+
+    /************************
+    *  create new message  *
+    ************************/
+    geometry_msgs::PoseStamped transformed_pose;
+    // TODO: Check if header is properly copied
+    transformed_pose.header = pose.header;
+    transformed_pose.pose.position = new_position;
+    transformed_pose.pose.orientation = new_orientation;
+
+    return transformed_pose;
+}
+
+typedef struct {
+    double x, y, z, roll, pitch, yaw;
+} Pose;
+
+static Pose poseStampedToPose(const geometry_msgs::Pose& pose)
+{
+    double roll, pitch, yaw, x, y, z;
+    tf2::Quaternion q(pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w);
+    tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
+    x = pose.position.x;
+    y = pose.position.y;
+    z = pose.position.z;
+    return {
+        .x = x,
+        .y = y,
+        .z = z,
+        .roll = roll,
+        .pitch = pitch,
+        .yaw = yaw
+    };
+}
+
+static geometry_msgs::Pose poseToGeoPose(const Pose& pose)
+{
+    geometry_msgs::Point position;
+    position.x = pose.x;
+    position.y = pose.y;
+    position.z = pose.z;
+    tf2::Quaternion q;
+    q.setRPY(pose.roll, pose.pitch, pose.yaw);
+    geometry_msgs::Quaternion orientation;
+    orientation.x = q[0];
+    orientation.y = q[1];
+    orientation.z = q[2];
+    orientation.w = q[3];
+    geometry_msgs::Pose p;
+    p.position = position;
+    p.orientation = orientation;
+    return p;
+}
+
 
 namespace pt = boost::property_tree;
 
