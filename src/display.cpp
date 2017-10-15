@@ -35,7 +35,6 @@ Display::Display()
     ros::NodeHandle nh("~");
 
     // Subscriber
-    cloud_subscriber = node_handle.subscribe("/pointcloud", 1, &Display::pointCloudCallback, this);
     mesh_geometry_subscriber = node_handle.subscribe("/mesh_geometry", 1, &Display::meshGeometryCallback, this);
 
     // Publisher
@@ -52,20 +51,16 @@ Display::Display()
     mesh_vertex_colors_service_client = node_handle.serviceClient<lvr_ros::GetVertexColors>("get_vertex_colors");
     mesh_textures_service_client = node_handle.serviceClient<lvr_ros::GetTexture>("get_texture");
 
-    int numSubscribers = 0;
-    while (numSubscribers < 1)
+    while (num_subscribers < 1)
     {
         ROS_INFO("Waiting for subscribers");
         ros::Duration(1.0).sleep();
 
-        numSubscribers = mesh_geometry_publisher.getNumSubscribers()
-            + mesh_materials_publisher.getNumSubscribers()
-            + mesh_vertex_colors_publisher.getNumSubscribers()
-            + mesh_texture_publisher.getNumSubscribers();
+        updateNumSubscribers();
 
-        if (numSubscribers > 0)
+        if (num_subscribers > 0)
         {
-            ROS_INFO_STREAM("Found " << numSubscribers << " subscribers");
+            ROS_INFO_STREAM("Found " << num_subscribers << " subscribers");
         }
     }
 
@@ -89,12 +84,6 @@ Display::~Display() {}
 /**********************************************************************************************************************/
 // Callbacks
 
-void Display::pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr cloud)
-{
-    // ROS_INFO("PointCloud2 received");
-    // TODO: colorize cloud, dann reconstruct action
-}
-
 void Display::meshGeometryCallback(const mesh_msgs::MeshGeometryStamped::ConstPtr mesh_geometry_stamped)
 {
     ROS_INFO("MeshGeometry received");
@@ -104,8 +93,26 @@ void Display::meshGeometryCallback(const mesh_msgs::MeshGeometryStamped::ConstPt
 /**********************************************************************************************************************/
 // Publisher logic
 
+void Display::updateNumSubscribers()
+{
+    num_subscribers = mesh_geometry_publisher.getNumSubscribers()
+        + mesh_materials_publisher.getNumSubscribers()
+        + mesh_vertex_colors_publisher.getNumSubscribers()
+        + mesh_texture_publisher.getNumSubscribers();
+}
+
+
 void Display::publish()
 {
+    // Check for a change in subscribers
+    unsigned int last_num_subscribers = num_subscribers;
+    updateNumSubscribers();
+    if (last_num_subscribers != num_subscribers)
+    {
+        publish_flag = true;
+    }
+
+    // If subscribers changed or new messages were received
     if (publish_flag)
     {
         if (has_geom)

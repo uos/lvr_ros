@@ -58,28 +58,31 @@ public:
     void publish();
 
 private:
-    void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr cloud);
     void meshGeometryCallback(const mesh_msgs::MeshGeometryStamped::ConstPtr mesh_geometry);
     void processNewUUID(std::string uuid);
     void processNewGeometry(const mesh_msgs::MeshGeometryStamped mesh_geometry_stamped);
+    void updateNumSubscribers();
 
     ros::NodeHandle node_handle;
 
-    ros::Subscriber cloud_subscriber;
+    // Mesh Geometry subscriber
     ros::Subscriber mesh_geometry_subscriber;
 
+    // Publishers and their number of subscribers
     ros::Publisher mesh_geometry_publisher;
     ros::Publisher mesh_materials_publisher;
     ros::Publisher mesh_vertex_colors_publisher;
     ros::Publisher mesh_texture_publisher;
+    unsigned int num_subscribers = 0;
 
+    // Service clients for lvr_ros
     ros::ServiceClient mesh_geometry_service_client;
     ros::ServiceClient mesh_uuid_service_client;
     ros::ServiceClient mesh_materials_service_client;
     ros::ServiceClient mesh_vertex_colors_service_client;
     ros::ServiceClient mesh_textures_service_client;
 
-
+    // Message Cache
     mesh_msgs::MeshGeometryStamped cache_geometry;
     mesh_msgs::MeshMaterialsStamped cache_materials;
     mesh_msgs::MeshVertexColorsStamped cache_vertexcolors;
