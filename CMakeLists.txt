@@ -16,6 +16,7 @@ set(PACKAGE_DEPENDENCIES
   hyperspectral_calibration
   move_base_flex
   tf
+  pcl_ros
 )
 
 find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})

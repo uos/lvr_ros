@@ -28,45 +28,93 @@
 #include <boost/property_tree/xml_parser.hpp>
 
 #include <Eigen/Geometry>
+#include <pcl_ros/transforms.h>
+
+#include "slam6d_ros_utils.hpp"
 
 // ansi escape for white on black
 #define CMD_COLOR(stuff) ("\033[37;40m") << (stuff) << ("\033[0m")
 
+bool getTransform(double *t, double *ti, double *rP, double *rPT, tf::TransformListener& listener, ros::Time time, const std::string fixed_frame="riegl_meas_origin", const std::string robot_frame="odom_combined")
+{
+  tf::StampedTransform transform;
+
+  std::string error_msg;
+  bool success = listener.waitForTransform(fixed_frame, robot_frame, time,
+          ros::Duration(3.0), ros::Duration(0.01), &error_msg);
+
+  if (!success)
+  {
+    ROS_WARN("Could not get transform, ignoring point cloud! %s", error_msg.c_str());
+    return false;
+  }
+
+  listener.lookupTransform(fixed_frame, robot_frame, time, transform);
+
+  double mat[9];
+  double x = transform.getOrigin().getX() * 100;
+  double y = transform.getOrigin().getY() * 100;
+  double z = transform.getOrigin().getZ() * 100;
+  mat[0] = transform.getBasis().getRow(0).getX();
+  mat[1] = transform.getBasis().getRow(0).getY();
+  mat[2] = transform.getBasis().getRow(0).getZ();
+
+  mat[3] = transform.getBasis().getRow(1).getX();
+  mat[4] = transform.getBasis().getRow(1).getY();
+  mat[5] = transform.getBasis().getRow(1).getZ();
+
+  mat[6] = transform.getBasis().getRow(2).getX();
+  mat[7] = transform.getBasis().getRow(2).getY();
+  mat[8] = transform.getBasis().getRow(2).getZ();
+
+  t[0] = mat[4];
+  t[1] = -mat[7];
+  t[2] = -mat[1];
+  t[3] = 0.0;
+
+  t[4] = -mat[5];
+  t[5] = mat[8];
+  t[6] = mat[2];
+  t[7] = 0.0;
+
+  t[8] = -mat[3];
+  t[9] = mat[6];
+  t[10] = mat[0];
+  t[11] = 0.0;
+
+  // translation
+  t[12] = -y;
+  t[13] = z;
+  t[14] = x;
+  t[15] = 1;
+  M4inv(t, ti);
+  Matrix4ToEuler(t, rPT, rP);
+
+  return true;
+}
+
 /**
  * @brief Perform coordinate transform from ROS/PCL to 3DTK and vice versa
  */
-static pcl::PointCloud<RieglPoint>::Ptr convert_coords_ros_3dtk(
-    const pcl::PointCloud<RieglPoint>& cloud,
-    const bool ros_to_3dtk=true
+static sensor_msgs::PointCloud2::Ptr convert_coords_ros_3dtk(
+    const sensor_msgs::PointCloud2& cloud,
+    const tf::TransformListener& transform_listener,
+    const std::string target_frame="odom_combined"
 )
 {
-    using namespace Eigen;
-    using namespace pcl;
-    Vector3f y_new, z_new, origin;
-    origin << 0, 0, 0;
-    if (ros_to_3dtk)
-    {
-        y_new << 0, 0, 1;
-        z_new << 1, 0, 0;
-    } else
-    {
-        y_new << -1, 0, 0;
-        z_new << 0, 1, 0;
-    }
-    Affine3f coord_transform;
-    getTransformationFromTwoUnitVectorsAndOrigin(y_new, z_new, origin, coord_transform);
-    pcl::PointCloud<RieglPoint>::Ptr transformed_cloud(new pcl::PointCloud<RieglPoint>);
-    pcl::transformPointCloud(cloud, *transformed_cloud, coord_transform);
-    return transformed_cloud;
+  sensor_msgs::PointCloud2::Ptr transformed_cloud(new sensor_msgs::PointCloud2);
+  // TODO: Don't ignore return value
+  pcl_ros::transformPointCloud(target_frame, cloud, *transformed_cloud, transform_listener);
+  return transformed_cloud;
 }
 
-static geometry_msgs::PoseStamped convert_pose_ros_3dtk(
-    const geometry_msgs::PoseStamped& pose,
+static geometry_msgs::Pose convert_pose_ros_3dtk(
+    const geometry_msgs::Pose& pose,
     const bool ros_to_3dtk=true
 )
 {
-    geometry_msgs::Point position = pose.pose.position;
-    geometry_msgs::Quaternion orientation = pose.pose.orientation;
+    geometry_msgs::Point position = pose.position;
+    geometry_msgs::Quaternion orientation = pose.orientation;
 
     geometry_msgs::Point new_position;
     geometry_msgs::Quaternion new_orientation;
@@ -115,11 +163,9 @@ static geometry_msgs::PoseStamped convert_pose_ros_3dtk(
     /************************
     *  create new message  *
     ************************/
-    geometry_msgs::PoseStamped transformed_pose;
-    // TODO: Check if header is properly copied
-    transformed_pose.header = pose.header;
-    transformed_pose.pose.position = new_position;
-    transformed_pose.pose.orientation = new_orientation;
+    geometry_msgs::Pose transformed_pose;
+    transformed_pose.position = new_position;
+    transformed_pose.orientation = new_orientation;
 
     return transformed_pose;
 }
@@ -188,7 +234,7 @@ namespace lvr_ros
     static const bfs::path remote_box_directory("/tmp/clouds_remote");
     static const bfs::path local_box_directory("/tmp/clouds_local");
     static const bfs::path trigger_fname = ".start_reconstruction";
-    static const bfs::path pose_fname    = "pose.xml";
+    static const bfs::path pose_fname    = "pose.pose";
     static const bfs::path config_fname  = "remote_reconstruction_config.yaml";
 
 
@@ -198,14 +244,9 @@ namespace lvr_ros
             RemoteReconstruction() : send_as(node_handle, "send",
                     boost::bind(&RemoteReconstruction::sendCloud, this, _1), false),
             reconstruct_as(node_handle, "reconstruct",
-                    boost::bind(&RemoteReconstruction::startReconstruction, this, _1), false)
+                    boost::bind(&RemoteReconstruction::startReconstruction, this, _1), false),
+            transform_listener(ros::Duration(60.0))
         {
-            cloud_subscriber = node_handle.subscribe(
-                    "/pointcloud",
-                    1,
-                    &RemoteReconstruction::pointCloudCallback,
-                    this
-            );
 
             mesh_publisher = node_handle.advertise<mesh_msgs::TriangleMeshStamped>("/mesh", 1);
 
@@ -289,10 +330,11 @@ namespace lvr_ros
 
             bool writePLY(const string& tmp_fname, const sensor_msgs::PointCloud2& cloud) const
             {
-                PointCloud<RieglPoint> pcl_cloud;
-                fromROSMsg<RieglPoint>(cloud, pcl_cloud);
                 // convert to 3dtk coordinate system for SLAM
-                pcl_cloud = *convert_coords_ros_3dtk(pcl_cloud);
+                const sensor_msgs::PointCloud2::Ptr transformed_cloud_ptr  =
+                    convert_coords_ros_3dtk(cloud, this->transform_listener);
+                PointCloud<RieglPoint> pcl_cloud;
+                fromROSMsg<RieglPoint>(*transformed_cloud_ptr, pcl_cloud);
                 // get temporary file to save cloud to
                 PLYWriter writer;
                 //                             write in binary
@@ -302,26 +344,19 @@ namespace lvr_ros
                 return res == 0;
             }
 
-            bool writePose(const geometry_msgs::PoseStamped& pose)
+            bool writePose(ros::Time stamp)
             {
-                const bfs::path fname = local_box_directory / pose_fname;
-                ofstream ofs(fname.string(), ios_base::out);
+                double t[16], ti[16], rP[3], rPT[3];
+                bool success = getTransform(t, ti, rP, rPT, this->transform_listener, stamp);
+                ofstream ofs((local_box_directory / pose_fname).string());
                 if (not ofs)
                 {
                     return false;
-                } else
-                {
-                    pt::ptree tree;
-                    tree.put("pose.position.x", pose.pose.position.x);
-                    tree.put("pose.position.y", pose.pose.position.y);
-                    tree.put("pose.position.z", pose.pose.position.z);
-                    tree.put("pose.orientation.x", pose.pose.orientation.x);
-                    tree.put("pose.orientation.y", pose.pose.orientation.y);
-                    tree.put("pose.orientation.z", pose.pose.orientation.z);
-                    tree.put("pose.orientation.w", pose.pose.orientation.w);
-                    pt::xml_parser::write_xml(fname.string(), tree);
-                    return true;
                 }
+                ofs << rP[0] << " " << rP[1] << " " << rP[2] << endl <<
+                    deg(rPT[0]) << " " << deg(rPT[1]) << " " << deg(rPT[2]);
+                ofs.close();
+                return true;
             }
 
             bool writeTriggerFile()
@@ -350,7 +385,8 @@ namespace lvr_ros
             void sendCloud(const lvr_ros::SendCloudGoalConstPtr& goal)
             {
                 const sensor_msgs::PointCloud2& cloud = goal->cloud;
-                bfs::path tmp_fname = local_box_directory / bfs::path(to_string(cloud.header.seq) + string(".ply"));
+                bfs::path tmp_fname = local_box_directory /
+                    bfs::path(to_string(cloud.header.seq) + string(".ply"));
                 ROS_INFO_STREAM("Saving PLY to " << tmp_fname << "...");
                 if (not writePLY(tmp_fname.string(), cloud))
                 {
@@ -366,8 +402,7 @@ namespace lvr_ros
                     return;
                 }
                 ROS_INFO_STREAM("Saving pose to temporary file...");
-                std::cout << goal->pose << std::endl;
-                if (not writePose(goal->pose))
+                if (not writePose(cloud.header.stamp))
                 {
                     ROS_ERROR_STREAM("Could not write current pose.");
                     send_as.setAborted();
@@ -396,7 +431,7 @@ namespace lvr_ros
                 command.str(string());
                 command.clear();
                 command << "scp " << local_box_directory / pose_fname;
-                command << " localhost:" << remote_box_directory / bfs::path(to_string(cloud.header.seq)) << ".xml";
+                command << " localhost:" << remote_box_directory / to_string(cloud.header.seq) << ".pose";
 
                 ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
                 res = system(command.str().c_str());
@@ -456,22 +491,15 @@ namespace lvr_ros
                 }
             }
 
-            void pointCloudCallback(
-                    const sensor_msgs::PointCloud2::ConstPtr& cloud
-            )
-            {
-            }
-
             DynReconfigureServerPtr reconfigure_server_ptr;
             DynReconfigureServer::CallbackType callback_type;
 
             ros::NodeHandle node_handle;
             ros::Publisher mesh_publisher;
-            ros::Subscriber cloud_subscriber;
             ReconstructionConfig config;
             SendCloudActionServer send_as;
             StartReconstructionActionServer reconstruct_as;
-
+            tf::TransformListener transform_listener;
     };
 }
 
