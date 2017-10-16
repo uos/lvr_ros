@@ -43,13 +43,8 @@ class CloudClient
             SendCloudGoal goal;
             goal.cloud = *cloud;
 
-            geometry_msgs::PoseStamped robot_pose;
-            tf::TransformListener tf_listener;
             const std::string robot_frame = "riegl_meas_origin";
             const std::string global_frame = "odom_combined";
-            move_base_flex::getRobotPose(tf_listener, robot_frame, global_frame, ros::Duration(2), robot_pose);
-            goal.pose = robot_pose;
-
             client_send.sendGoal(goal);
 
             ROS_INFO_STREAM("Sending cloud...");
