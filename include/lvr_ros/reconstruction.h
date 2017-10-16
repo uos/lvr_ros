@@ -41,6 +41,7 @@
 
 #include <mesh_msgs/TriangleMesh.h>
 #include <mesh_msgs/TriangleMeshStamped.h>
+#include <mesh_msgs/Texture.h>
 
 #include <lvr2/geometry/BaseVector.hpp>
 #include <lvr2/io/PointBuffer.hpp>
@@ -134,7 +135,7 @@ private:
     mesh_msgs::MeshMaterialsStamped cache_mesh_materials_stamped;
     mesh_msgs::MeshVertexColorsStamped cache_mesh_vertex_colors_stamped;
     std::string cache_uuid;
-    std::vector<sensor_msgs::Image> cache_textures;
+    std::vector<mesh_msgs::Texture> cache_textures;
 
 };
 

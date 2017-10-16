@@ -70,6 +70,18 @@ using std::make_shared;
 #include <lvr2/util/Factories.hpp>
 #include <lvr2/util/Panic.hpp>
 
+#if defined CUDA_FOUND
+    #define GPU_FOUND
+
+    #include <lvr/reconstruction/cuda/CudaSurface.hpp>
+    typedef lvr::CudaSurface GpuSurface;
+#elif defined OPENCL_FOUND
+    #define GPU_FOUND
+
+    #include <lvr/reconstruction/opencl/ClSurface.hpp>
+    typedef lvr::ClSurface GpuSurface;
+#endif
+
 namespace lvr_ros
 {
 
@@ -116,10 +128,12 @@ Reconstruction::Reconstruction()
 
 void Reconstruction::reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal)
 {
+    ROS_INFO("Action: Reconstruct");
     try
     {
         lvr_ros::ReconstructResult result;
         createMeshMessageFromPointCloud(goal->cloud, result.mesh);
+        result.uuid = cache_uuid;
         as_.setSucceeded(result, "Published mesh.");
     }
     catch(std::exception& e)
@@ -134,7 +148,8 @@ bool Reconstruction::service_getGeometry(
     lvr_ros::GetGeometry::Response& res
 )
 {
-    if (req.uuid != cache_uuid)
+    ROS_INFO("Service: Get Geometry");
+    if (!cache_initialized || req.uuid != cache_uuid)
     {
         return false;
     }
@@ -147,7 +162,8 @@ bool Reconstruction::service_getMaterials(
     lvr_ros::GetMaterials::Response& res
 )
 {
-    if (req.uuid != cache_uuid)
+    ROS_INFO("Service: Get Materials");
+    if (!cache_initialized || req.uuid != cache_uuid)
     {
         return false;
     }
@@ -160,7 +176,8 @@ bool Reconstruction::service_getTexture(
     lvr_ros::GetTexture::Response& res
 )
 {
-    if (req.uuid != cache_uuid || req.texture_index > cache_textures.size() - 1)
+    ROS_INFO("Service: Get Texture");
+    if (!cache_initialized || req.uuid != cache_uuid || req.texture_index > cache_textures.size() - 1)
     {
         return false;
     }
@@ -173,7 +190,8 @@ bool Reconstruction::service_getVertexColors(
     lvr_ros::GetVertexColors::Response& res
 )
 {
-    if (req.uuid != cache_uuid)
+    ROS_INFO("Service: Get Vertex Colors");
+    if (!cache_initialized || req.uuid != cache_uuid)
     {
         return false;
     }
@@ -186,6 +204,11 @@ bool Reconstruction::service_getUUID(
     lvr_ros::GetUUID::Response& res
 )
 {
+    ROS_INFO("Service: Get UUID");
+    if (!cache_initialized)
+    {
+        return false;
+    }
     res.uuid = cache_uuid;
     return true;
 }
@@ -200,6 +223,8 @@ void Reconstruction::pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr
     {
         ROS_ERROR_STREAM("Error in PointCloud callback");
     }
+
+    ROS_INFO_STREAM("Publish mesh geometry");
 
     // Reconstruction is done, publish TriangleMesh (deprecated!)
     mesh_publisher.publish(mesh);
@@ -220,6 +245,9 @@ bool Reconstruction::createMeshMessageFromPointCloud(
     mesh_msgs::TriangleMeshStamped& mesh_msg
 )
 {
+    // Generate uuid for new mesh
+    boost::uuids::uuid boost_uuid = boost::uuids::random_generator()();
+    std::string uuid = boost::lexical_cast<std::string>(boost_uuid);
 
     /*
      * This method will generate
@@ -263,7 +291,8 @@ bool Reconstruction::createMeshMessageFromPointCloud(
             cache_mesh_geometry_stamped.mesh_geometry,
             cache_mesh_materials_stamped.mesh_materials,
             cache_mesh_vertex_colors_stamped.mesh_vertex_colors,
-            cache_textures
+            cache_textures,
+            uuid
     ))
     {
         ROS_ERROR_STREAM("Could not convert \"lvr2::MeshBuffer\" to mesh messages!");
@@ -273,8 +302,6 @@ bool Reconstruction::createMeshMessageFromPointCloud(
     // Setting header frame and stamp for TriangleMesh
     mesh_msg.header.frame_id = cloud.header.frame_id;
     mesh_msg.header.stamp = cloud.header.stamp;
-
-
 
     // The following segment will update new MeshGeometry and MeshAttribute messages in cache
     // These messages will be available via action/service
@@ -288,14 +315,11 @@ bool Reconstruction::createMeshMessageFromPointCloud(
     cache_mesh_vertex_colors_stamped.header.frame_id = cloud.header.frame_id;
     cache_mesh_vertex_colors_stamped.header.stamp = cloud.header.stamp;
 
-    // Set uuid
-    boost::uuids::uuid boost_uuid = boost::uuids::random_generator()();
-    std::string uuid = boost::lexical_cast<std::string>(boost_uuid);
-    cache_uuid = uuid;
-
     cache_mesh_geometry_stamped.uuid = uuid;
     cache_mesh_materials_stamped.uuid = uuid;
     cache_mesh_vertex_colors_stamped.uuid = uuid;
+
+    cache_uuid = uuid;
 
     return true;
 }
@@ -308,6 +332,35 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
     // Create a point cloud manager
     string pcm_name = config.pcm;
     lvr2::PointsetSurfacePtr<Vec> surface;
+    bool use_gpu = config.useGPU;
+
+
+    if(use_gpu){
+        #ifdef GPU_FOUND
+            size_t num_points;
+            lvr::floatArr points;
+            lvr::PointBuffer old_buffer = point_buffer->toOldBuffer();
+            points = old_buffer.getPointArray(num_points);
+            lvr::floatArr normals = lvr::floatArr(new float[ num_points * 3 ]);
+            ROS_INFO_STREAM("Generate GPU kd-tree...");
+            GpuSurface gpu_surface(points, num_points);
+            ROS_INFO_STREAM("finished.");
+
+            gpu_surface.setKn(config.kn);
+            gpu_surface.setKi(config.ki);
+            gpu_surface.setFlippoint(config.flipx, config.flipy, config.flipz);
+            ROS_INFO_STREAM("Start Normal Calculation...");
+            gpu_surface.calculateNormals();
+            gpu_surface.getNormals(normals);
+            ROS_INFO_STREAM("finished.");
+            old_buffer.setPointNormalArray(normals, num_points);
+            gpu_surface.freeGPU();
+
+            new (&point_buffer) PointBufferPtr(new PointBuffer(old_buffer) );
+        #else
+            std::cout << "ERROR: GPU Driver not installed" << std::endl;
+        #endif
+    }
 
     // Create point set surface object
     if (pcm_name == "PCL")
@@ -535,7 +588,10 @@ int main(int argc, char **args)
 {
     ros::init(argc, args, "reconstruction");
     lvr_ros::Reconstruction reconstruction;
-    ros::spin();
+    // ros::spin();
 
+
+    ros::MultiThreadedSpinner spinner(4); // Use 4 threads
+    spinner.spin(); // spin() will not return until the node has been shutdown
     return 0;
 }

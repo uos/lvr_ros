@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="lvr_ros" type="lvr_ros_display" name="lvr_ros_display" output="screen" cwd="node">
+        <remap from="pointcloud" to="riegl_cloud"/>
+        <remap from="mesh_geometry_display" to="mesh_geometry_display"/>
+        <remap from="mesh_materials_display" to="mesh_materials_display"/>
+        <remap from="mesh_vertex_colors_display" to="mesh_vertex_colors_display"/>
+        <remap from="mesh_textures_display" to="mesh_textures_display"/>
+    </node>
+</launch>
