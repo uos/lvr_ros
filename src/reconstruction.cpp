@@ -224,6 +224,8 @@ void Reconstruction::pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr
         ROS_ERROR_STREAM("Error in PointCloud callback");
     }
 
+    ROS_INFO_STREAM("Publish mesh geometry");
+
     // Reconstruction is done, publish TriangleMesh (deprecated!)
     mesh_publisher.publish(mesh);
     // .. and also publish MeshGeometry (new! use this)

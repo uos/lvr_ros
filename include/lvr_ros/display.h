@@ -40,6 +40,8 @@
 #include <mesh_msgs/VertexTexCoords.h>
 #include <mesh_msgs/Texture.h>
 
+#include <unistd.h>
+
 #include "lvr_ros/GetGeometry.h"
 #include "lvr_ros/GetMaterials.h"
 #include "lvr_ros/GetTexture.h"

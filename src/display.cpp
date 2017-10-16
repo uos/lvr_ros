@@ -51,18 +51,17 @@ Display::Display()
     mesh_vertex_colors_service_client = node_handle.serviceClient<lvr_ros::GetVertexColors>("get_vertex_colors");
     mesh_textures_service_client = node_handle.serviceClient<lvr_ros::GetTexture>("get_texture");
 
-    while (num_subscribers < 1)
-    {
-        ROS_INFO("Waiting for subscribers");
-        ros::Duration(1.0).sleep();
+    // while (num_subscribers < 1)
+    // {
+    //     ROS_INFO("Waiting for subscribers");
+    //     ros::Duration(1.0).sleep();
+    //     updateNumSubscribers();
 
-        updateNumSubscribers();
-
-        if (num_subscribers > 0)
-        {
-            ROS_INFO_STREAM("Found " << num_subscribers << " subscribers");
-        }
-    }
+    //     if (num_subscribers > 0)
+    //     {
+    //         ROS_INFO_STREAM("Found " << num_subscribers << " subscribers");
+    //     }
+    // }
 
     // Once everything is setup, try to get an initial UUID from lvr_ros::reconstruction
     ROS_INFO("Initial service call");
@@ -104,11 +103,13 @@ void Display::updateNumSubscribers()
 
 void Display::publish()
 {
+    // ROS_INFO("Publish callback");
     // Check for a change in subscribers
     unsigned int last_num_subscribers = num_subscribers;
     updateNumSubscribers();
     if (last_num_subscribers != num_subscribers)
     {
+        ROS_INFO("Detected a change in the number of current subscribers");
         publish_flag = true;
     }
 
@@ -246,10 +247,9 @@ int main(int argc, char **args)
 {
     ros::init(argc, args, "display");
     lvr_ros::Display display;
-    ros::Rate rate(500);
     while (ros::ok())
     {
-        rate.sleep();
+        usleep(500); // FIXME: ros::Duration sleep doesnt work with use_sim_time true
         display.publish();
         ros::spinOnce();
     }
