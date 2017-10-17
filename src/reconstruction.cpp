@@ -379,7 +379,7 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
                 gpu_surface.getNormals(normals);
                 ROS_INFO_STREAM("finished.");
                 old_buffer.setPointNormalArray(normals, num_points);
-                point_buffer->copyNormals(old_buffer);
+                point_buffer->copyNormalsFrom(old_buffer);
                 gpu_surface.freeGPU();
             #else
                 std::cout << "ERROR: GPU Driver not installed" << std::endl;
