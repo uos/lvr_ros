@@ -36,60 +36,60 @@
 
 bool getTransform(double *t, double *ti, double *rP, double *rPT, tf::TransformListener& listener, ros::Time time, const std::string fixed_frame="riegl_meas_origin", const std::string robot_frame="odom_combined")
 {
-  tf::StampedTransform transform;
+    tf::StampedTransform transform;
 
-  std::string error_msg;
-  bool success = listener.waitForTransform(fixed_frame, robot_frame, time,
-          ros::Duration(3.0), ros::Duration(0.01), &error_msg);
+    std::string error_msg;
+    bool success = listener.waitForTransform(fixed_frame, robot_frame, time,
+            ros::Duration(3.0), ros::Duration(0.01), &error_msg);
 
-  if (!success)
-  {
-    ROS_WARN("Could not get transform, ignoring point cloud! %s", error_msg.c_str());
-    return false;
-  }
+    if (!success)
+    {
+        ROS_WARN("Could not get transform, ignoring point cloud! %s", error_msg.c_str());
+        return false;
+    }
 
-  listener.lookupTransform(fixed_frame, robot_frame, time, transform);
+    listener.lookupTransform(fixed_frame, robot_frame, time, transform);
 
-  double mat[9];
-  double x = transform.getOrigin().getX() * 100;
-  double y = transform.getOrigin().getY() * 100;
-  double z = transform.getOrigin().getZ() * 100;
-  mat[0] = transform.getBasis().getRow(0).getX();
-  mat[1] = transform.getBasis().getRow(0).getY();
-  mat[2] = transform.getBasis().getRow(0).getZ();
+    double mat[9];
+    double x = transform.getOrigin().getX() * 100;
+    double y = transform.getOrigin().getY() * 100;
+    double z = transform.getOrigin().getZ() * 100;
+    mat[0] = transform.getBasis().getRow(0).getX();
+    mat[1] = transform.getBasis().getRow(0).getY();
+    mat[2] = transform.getBasis().getRow(0).getZ();
 
-  mat[3] = transform.getBasis().getRow(1).getX();
-  mat[4] = transform.getBasis().getRow(1).getY();
-  mat[5] = transform.getBasis().getRow(1).getZ();
+    mat[3] = transform.getBasis().getRow(1).getX();
+    mat[4] = transform.getBasis().getRow(1).getY();
+    mat[5] = transform.getBasis().getRow(1).getZ();
 
-  mat[6] = transform.getBasis().getRow(2).getX();
-  mat[7] = transform.getBasis().getRow(2).getY();
-  mat[8] = transform.getBasis().getRow(2).getZ();
+    mat[6] = transform.getBasis().getRow(2).getX();
+    mat[7] = transform.getBasis().getRow(2).getY();
+    mat[8] = transform.getBasis().getRow(2).getZ();
 
-  t[0] = mat[4];
-  t[1] = -mat[7];
-  t[2] = -mat[1];
-  t[3] = 0.0;
+    t[0] = mat[4];
+    t[1] = -mat[7];
+    t[2] = -mat[1];
+    t[3] = 0.0;
 
-  t[4] = -mat[5];
-  t[5] = mat[8];
-  t[6] = mat[2];
-  t[7] = 0.0;
+    t[4] = -mat[5];
+    t[5] = mat[8];
+    t[6] = mat[2];
+    t[7] = 0.0;
 
-  t[8] = -mat[3];
-  t[9] = mat[6];
-  t[10] = mat[0];
-  t[11] = 0.0;
+    t[8] = -mat[3];
+    t[9] = mat[6];
+    t[10] = mat[0];
+    t[11] = 0.0;
 
-  // translation
-  t[12] = -y;
-  t[13] = z;
-  t[14] = x;
-  t[15] = 1;
-  M4inv(t, ti);
-  Matrix4ToEuler(t, rPT, rP);
+    // translation
+    t[12] = -y;
+    t[13] = z;
+    t[14] = x;
+    t[15] = 1;
+    M4inv(t, ti);
+    Matrix4ToEuler(t, rPT, rP);
 
-  return true;
+    return true;
 }
 
 /**
@@ -101,113 +101,10 @@ static sensor_msgs::PointCloud2::Ptr convert_coords_ros_3dtk(
     const std::string target_frame="odom_combined"
 )
 {
-  sensor_msgs::PointCloud2::Ptr transformed_cloud(new sensor_msgs::PointCloud2);
-  // TODO: Don't ignore return value
-  pcl_ros::transformPointCloud(target_frame, cloud, *transformed_cloud, transform_listener);
-  return transformed_cloud;
-}
-
-static geometry_msgs::Pose convert_pose_ros_3dtk(
-    const geometry_msgs::Pose& pose,
-    const bool ros_to_3dtk=true
-)
-{
-    geometry_msgs::Point position = pose.position;
-    geometry_msgs::Quaternion orientation = pose.orientation;
-
-    geometry_msgs::Point new_position;
-    geometry_msgs::Quaternion new_orientation;
-
-    /*************************
-    *  Convert orientation  *
-    *************************/
-    tf2::Quaternion q(orientation.x, orientation.y, orientation.z, orientation.w);
-    if (ros_to_3dtk)
-    {
-        double roll, pitch, yaw;
-        // TODO: Maybe flip sign of rotation round x-axis (in 3dtk)
-        tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
-        tf2::Quaternion new_q;
-        new_q.setRPY(pitch, yaw, roll);
-        new_orientation.x = new_q[0];
-        new_orientation.y = new_q[1];
-        new_orientation.z = new_q[2];
-        new_orientation.w = new_q[3];
-    } else
-    {
-        double roll, pitch, yaw;
-        tf2::Matrix3x3(q).getRPY(pitch, yaw, roll);
-        tf2::Quaternion new_q;
-        new_q.setRPY(roll, pitch, yaw);
-        new_orientation.x = new_q[0];
-        new_orientation.y = new_q[1];
-        new_orientation.z = new_q[2];
-        new_orientation.w = new_q[3];
-    }
-    /**********************
-    *  Convert position  *
-    **********************/
-    if (ros_to_3dtk)
-    {
-        new_position.x = -position.y;
-        new_position.y = position.z;
-        new_position.z = position.x;
-    } else
-    {
-        new_position.x = position.z;
-        new_position.y = -position.x;
-        new_position.z = position.y;
-    }
-
-    /************************
-    *  create new message  *
-    ************************/
-    geometry_msgs::Pose transformed_pose;
-    transformed_pose.position = new_position;
-    transformed_pose.orientation = new_orientation;
-
-    return transformed_pose;
-}
-
-typedef struct {
-    double x, y, z, roll, pitch, yaw;
-} Pose;
-
-static Pose poseStampedToPose(const geometry_msgs::Pose& pose)
-{
-    double roll, pitch, yaw, x, y, z;
-    tf2::Quaternion q(pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w);
-    tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
-    x = pose.position.x;
-    y = pose.position.y;
-    z = pose.position.z;
-    return {
-        .x = x,
-        .y = y,
-        .z = z,
-        .roll = roll,
-        .pitch = pitch,
-        .yaw = yaw
-    };
-}
-
-static geometry_msgs::Pose poseToGeoPose(const Pose& pose)
-{
-    geometry_msgs::Point position;
-    position.x = pose.x;
-    position.y = pose.y;
-    position.z = pose.z;
-    tf2::Quaternion q;
-    q.setRPY(pose.roll, pose.pitch, pose.yaw);
-    geometry_msgs::Quaternion orientation;
-    orientation.x = q[0];
-    orientation.y = q[1];
-    orientation.z = q[2];
-    orientation.w = q[3];
-    geometry_msgs::Pose p;
-    p.position = position;
-    p.orientation = orientation;
-    return p;
+    sensor_msgs::PointCloud2::Ptr transformed_cloud(new sensor_msgs::PointCloud2);
+    // TODO: Don't ignore return value
+    pcl_ros::transformPointCloud(target_frame, cloud, *transformed_cloud, transform_listener);
+    return transformed_cloud;
 }
 
 
@@ -411,10 +308,12 @@ namespace lvr_ros
                 /*******************
                 *  Copy ply file  *
                 *******************/
+                char file_base[20];
+                sprintf(file_base, "scan%03d", cloud.header.seq);
                 stringstream command;
                 command << "scp ";
                 command << tmp_fname;
-                command << " localhost:" << remote_box_directory;
+                command << " localhost:" << remote_box_directory / bfs::path(string(file_base)) << ".ply";
 
                 ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
                 int res = system(command.str().c_str());
@@ -430,7 +329,7 @@ namespace lvr_ros
                 command.str(string());
                 command.clear();
                 command << "scp " << local_box_directory / pose_fname;
-                command << " localhost:" << remote_box_directory / to_string(cloud.header.seq) << ".pose";
+                command << " localhost:" << remote_box_directory / bfs::path(string(file_base)) << ".pose";
 
                 ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
                 res = system(command.str().c_str());
