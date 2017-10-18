@@ -1,6 +1,5 @@
 <?xml version="1.0"?>
 <launch>
-
   <arg name="remote" default="false" />
 
   <node unless="$(arg remote)" pkg="lvr_ros" type="lvr_ros_reconstruction"

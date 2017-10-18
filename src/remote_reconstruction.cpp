@@ -29,7 +29,7 @@
 #include <Eigen/Geometry>
 #include <pcl_ros/transforms.h>
 
-#include "slam6d_ros_utils.hpp"
+#include "lvr_ros/slam6d_ros_utils.hpp"
 
 // ansi escape for white on black
 #define CMD_COLOR(stuff) ("\033[37;40m") << (stuff) << ("\033[0m")

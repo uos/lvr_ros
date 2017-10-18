@@ -24,9 +24,7 @@ class TriggerFileEventHandler(FileSystemEventHandler):
         for f in listdir(self.box_dir):
             unlink(path.join(self.box_dir, f))
 
-    def on_created(self, event):
-        print("New file: %s" % event.src_path)
-
+    def on_event(self, event):
         if self.is_executing:
             return
 
@@ -39,6 +37,13 @@ class TriggerFileEventHandler(FileSystemEventHandler):
             print("Found config file.")
         if self.trigger_found and self.config_found:
             self.execute()
+
+    def on_created(self, event):
+        print("New file: %s" % event.src_path)
+        self.on_event(event)
+
+    def on_modified(self, event):
+        self.on_event(event)
 
     def execute(self):
         self.is_executing = True
@@ -71,16 +76,11 @@ def main():
             time.sleep(0.5)
     except KeyboardInterrupt:
         observer.stop()
-        print("Cleaning all files.")
-        event_handler.delete_all()
+        # print("Cleaning all files.")
+        # event_handler.delete_all()
         print('Ok bye.')
 
     observer.join()
-
-    # while True:
-    #     waitForTrigger(args.path)
-    #     reconstruct(args.path, args.destination)
-    #     sendResult(args.destination)
 
 
 if __name__ == '__main__':
