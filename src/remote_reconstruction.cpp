@@ -2,8 +2,7 @@
 #include "lvr_ros/SendCloudAction.h"
 #include "lvr_ros/StartReconstructionAction.h"
 
-// no hyperspectral_calibration prefix ??
-#include "types/types.hpp"
+#include <pcl_definitions/types/types.hpp>
 
 #include <fstream>
 #include <sstream>

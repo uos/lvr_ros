@@ -39,6 +39,7 @@
   <run_depend>move_base_flex</run_depend>
   <run_depend>tf</run_depend>
   <run_depend>pcl_ros</run_depend>
+  <run_depend>pcl_definitions</run_depend>
 
   <buildtool_depend>catkin</buildtool_depend>
 
