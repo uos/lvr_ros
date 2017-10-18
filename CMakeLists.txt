@@ -17,6 +17,7 @@ set(PACKAGE_DEPENDENCIES
   move_base_flex
   tf
   pcl_ros
+  pcl_definitions
 )
 
 find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})
