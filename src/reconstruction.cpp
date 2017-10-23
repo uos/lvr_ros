@@ -144,8 +144,8 @@ void Reconstruction::reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal)
 }
 
 bool Reconstruction::service_getGeometry(
-    lvr_ros::GetGeometry::Request& req,
-    lvr_ros::GetGeometry::Response& res
+    mesh_msgs::GetGeometry::Request& req,
+    mesh_msgs::GetGeometry::Response& res
 )
 {
     ROS_INFO("Service: Get Geometry");
@@ -158,8 +158,8 @@ bool Reconstruction::service_getGeometry(
 }
 
 bool Reconstruction::service_getMaterials(
-    lvr_ros::GetMaterials::Request& req,
-    lvr_ros::GetMaterials::Response& res
+    mesh_msgs::GetMaterials::Request& req,
+    mesh_msgs::GetMaterials::Response& res
 )
 {
     ROS_INFO("Service: Get Materials");
@@ -172,8 +172,8 @@ bool Reconstruction::service_getMaterials(
 }
 
 bool Reconstruction::service_getTexture(
-    lvr_ros::GetTexture::Request& req,
-    lvr_ros::GetTexture::Response& res
+    mesh_msgs::GetTexture::Request& req,
+    mesh_msgs::GetTexture::Response& res
 )
 {
     ROS_INFO("Service: Get Texture");
@@ -186,8 +186,8 @@ bool Reconstruction::service_getTexture(
 }
 
 bool Reconstruction::service_getVertexColors(
-    lvr_ros::GetVertexColors::Request& req,
-    lvr_ros::GetVertexColors::Response& res
+    mesh_msgs::GetVertexColors::Request& req,
+    mesh_msgs::GetVertexColors::Response& res
 )
 {
     ROS_INFO("Service: Get Vertex Colors");
@@ -200,8 +200,8 @@ bool Reconstruction::service_getVertexColors(
 }
 
 bool Reconstruction::service_getUUID(
-    lvr_ros::GetUUID::Request& req,
-    lvr_ros::GetUUID::Response& res
+    mesh_msgs::GetUUID::Request& req,
+    mesh_msgs::GetUUID::Response& res
 )
 {
     ROS_INFO("Service: Get UUID");
