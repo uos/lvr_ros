@@ -34,7 +34,11 @@
 // ansi escape for white on black
 #define CMD_COLOR(stuff) ("\033[37;40m") << (stuff) << ("\033[0m")
 
-bool getTransform(double *t, double *ti, double *rP, double *rPT, tf::TransformListener& listener, ros::Time time, const std::string fixed_frame="riegl_meas_origin", const std::string robot_frame="odom_combined")
+bool getTransform(double *t, double *ti, double *rP, double *rPT,
+        tf::TransformListener& listener, ros::Time time,
+        const std::string fixed_frame="riegl_meas_origin",
+        const std::string robot_frame="odom_combined"
+)
 {
     tf::StampedTransform transform;
 
@@ -93,18 +97,27 @@ bool getTransform(double *t, double *ti, double *rP, double *rPT, tf::TransformL
 }
 
 /**
- * @brief Perform coordinate transform from ROS/PCL to 3DTK and vice versa
+ * @brief Perform coordinate transform from ROS/PCL to 3DTK
  */
-static sensor_msgs::PointCloud2::Ptr convert_coords_ros_3dtk(
-    const sensor_msgs::PointCloud2& cloud,
-    const tf::TransformListener& transform_listener,
-    const std::string target_frame="odom_combined"
+static pcl::PointCloud<RieglPoint>::Ptr convert_coords_ros_3dtk(
+    const sensor_msgs::PointCloud2& cloud
 )
 {
-    sensor_msgs::PointCloud2::Ptr transformed_cloud(new sensor_msgs::PointCloud2);
-    // TODO: Don't ignore return value
-    pcl_ros::transformPointCloud(target_frame, cloud, *transformed_cloud, transform_listener);
-    return transformed_cloud;
+    using namespace pcl;
+    using namespace ros;
+
+    PointCloud<RieglPoint>::Ptr cloud_pcl(new PointCloud<RieglPoint>);
+    fromROSMsg<RieglPoint>(cloud, *cloud_pcl);
+    for (auto& point : cloud_pcl->points)
+    {
+        float x = point.x,
+              y = point.y,
+              z = point.z;
+        point.x = 100 * y;
+        point.y = 100 * z * -1;
+        point.z = 100 * x;
+    }
+    return cloud_pcl;
 }
 
 
@@ -227,15 +240,12 @@ namespace lvr_ros
             bool writePLY(const string& tmp_fname, const sensor_msgs::PointCloud2& cloud) const
             {
                 // convert to 3dtk coordinate system for SLAM
-                const sensor_msgs::PointCloud2::Ptr transformed_cloud_ptr  =
-                    convert_coords_ros_3dtk(cloud, this->transform_listener);
-                PointCloud<RieglPoint> pcl_cloud;
-                fromROSMsg<RieglPoint>(*transformed_cloud_ptr, pcl_cloud);
+                const PointCloud<RieglPoint>::Ptr transformed_cloud_ptr  = convert_coords_ros_3dtk(cloud);
                 // get temporary file to save cloud to
                 PLYWriter writer;
                 //                             write in binary
                 //                                   |
-                int res = writer.write(tmp_fname, pcl_cloud, true, false);
+                int res = writer.write(tmp_fname, *transformed_cloud_ptr, true, false);
                 ROS_INFO_STREAM("Result: " << res);
                 return res == 0;
             }
