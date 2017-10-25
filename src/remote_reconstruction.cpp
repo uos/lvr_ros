@@ -43,7 +43,7 @@ bool getTransform(double *t, double *ti, double *rP, double *rPT,
     tf::StampedTransform transform;
 
     std::string error_msg;
-    bool success = listener.waitForTransform(fixed_frame, robot_frame, time,
+    bool success = listener.waitForTransform(robot_frame, fixed_frame, time,
             ros::Duration(3.0), ros::Duration(0.01), &error_msg);
 
     if (!success)
@@ -52,7 +52,7 @@ bool getTransform(double *t, double *ti, double *rP, double *rPT,
         return false;
     }
 
-    listener.lookupTransform(fixed_frame, robot_frame, time, transform);
+    listener.lookupTransform(robot_frame, fixed_frame, time, transform);
 
     double mat[9];
     double x = transform.getOrigin().getX() * 100;
@@ -113,8 +113,8 @@ static pcl::PointCloud<RieglPoint>::Ptr convert_coords_ros_3dtk(
         float x = point.x,
               y = point.y,
               z = point.z;
-        point.x = 100 * y;
-        point.y = 100 * z * -1;
+        point.x = 100 * y * -1;
+        point.y = 100 * z;
         point.z = 100 * x;
     }
     return cloud_pcl;
