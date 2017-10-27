@@ -3,6 +3,7 @@
 #include "lvr_ros/StartReconstructionAction.h"
 
 #include <pcl_definitions/types/types.hpp>
+#include <pcl_definitions/utils.hpp>
 
 #include <fstream>
 #include <sstream>
@@ -110,12 +111,8 @@ static pcl::PointCloud<RieglPoint>::Ptr convert_coords_ros_3dtk(
     fromROSMsg<RieglPoint>(cloud, *cloud_pcl);
     for (auto& point : cloud_pcl->points)
     {
-        float x = point.x,
-              y = point.y,
-              z = point.z;
-        point.x = 100 * y * -1;
-        point.y = 100 * z;
-        point.z = 100 * x;
+        RieglPoint point_slam6d = ros2slam6d(point);
+        point = point_slam6d;
     }
     return cloud_pcl;
 }
