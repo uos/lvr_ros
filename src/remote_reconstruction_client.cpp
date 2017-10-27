@@ -21,6 +21,7 @@ class CloudClient
         SendClient client_send;
         ReconstructClient client_reconstruct;
         int n_clouds;
+        int max_clouds;
 
         void sendTrigger()
         {
@@ -58,7 +59,7 @@ class CloudClient
                 ROS_INFO_STREAM("Cloud sent successfully.");
             }
 
-            if (n_clouds >= 5)
+            if (n_clouds >= max_clouds)
             {
                 sendTrigger();
             }
@@ -72,13 +73,15 @@ class CloudClient
         cloud_sub = nh.subscribe<sensor_msgs::PointCloud2>("/riegl_cloud", 5,
                 &CloudClient::pointCloudCallback, this);
         ROS_INFO_STREAM("Waiting for servers.");
+        nh.getParam("numClouds", max_clouds);
+        ROS_INFO_STREAM("Will stop after " << max_clouds << " clouds.");
         client_send.waitForServer();
         client_reconstruct.waitForServer();
     }
 };
 
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     ros::init(argc, argv, "remote_reconstruction_client");
     ros::NodeHandle nh("~");
