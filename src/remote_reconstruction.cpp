@@ -168,6 +168,7 @@ namespace lvr_ros
             {
                 bfs::create_directory(remote_box_directory);
             }
+            n_clouds = 0;
         }
 
         private:
@@ -316,7 +317,7 @@ namespace lvr_ros
                 *  Copy ply file  *
                 *******************/
                 char file_base[20];
-                sprintf(file_base, "scan%03d", cloud.header.seq);
+                sprintf(file_base, "scan%03d", n_clouds++);
                 stringstream command;
                 command << "scp ";
                 command << tmp_fname;
@@ -355,6 +356,7 @@ namespace lvr_ros
                     const lvr_ros::StartReconstructionGoalConstPtr& goal
             )
             {
+                n_clouds = 0;
                 if (not writeTriggerFile())
                 {
                     ROS_ERROR_STREAM("Could not create trigger file");
@@ -405,6 +407,7 @@ namespace lvr_ros
             SendCloudActionServer send_as;
             StartReconstructionActionServer reconstruct_as;
             tf::TransformListener transform_listener;
+            int n_clouds;
     };
 }
 
