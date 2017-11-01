@@ -290,6 +290,77 @@ bool fromMeshBufferToTriangleMesh(lvr::MeshBuffer& buffer, mesh_msgs::TriangleMe
     }
 }
 
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
+    lvr2::MeshBuffer<Vec>& buffer)
+{
+    fromMeshGeometryToMeshBuffer(*mesh_geometry_ptr, buffer);
+}
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr)
+{
+    fromMeshGeometryToMeshBuffer(*mesh_geometry_ptr, *buffer_ptr);
+}
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr)
+{
+    fromMeshGeometryToMeshBuffer(*mesh_geometry_ptr, *buffer_ptr);
+}
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
+    lvr2::MeshBuffer<Vec>& buffer)
+{
+    fromMeshGeometryToMeshBuffer(*mesh_geometry_ptr, buffer);
+}
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr)
+{
+    fromMeshGeometryToMeshBuffer(mesh_geometry, *buffer_ptr);
+}
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    lvr2::MeshBuffer<Vec>& buffer)
+{
+    std::vector<float> vertices;
+    vertices.reserve(mesh_geometry.vertices.size() * 3);
+    for(const geometry_msgs::Point& p : mesh_geometry.vertices)
+    {
+        vertices.push_back(p.x);
+        vertices.push_back(p.y);
+        vertices.push_back(p.z);
+    }
+    buffer.setVertices(vertices);
+
+    std::vector<unsigned int> faces;
+    faces.reserve(mesh_geometry.faces.size() * 3);
+    for(const mesh_msgs::TriangleIndices& t : mesh_geometry.faces)
+    {
+        faces.push_back(t.vertex_indices[0]);
+        faces.push_back(t.vertex_indices[1]);
+        faces.push_back(t.vertex_indices[2]);
+    }
+    buffer.setFaceIndices(faces);
+
+    std::vector<float> normals;
+    normals.reserve(mesh_geometry.vertex_normals.size() * 3);
+    for(const geometry_msgs::Point& n : mesh_geometry.vertex_normals)
+    {
+        normals.push_back(n.x);
+        normals.push_back(n.y);
+        normals.push_back(n.z);
+    }
+    buffer.setVertexNormals(normals);
+    return true;
+}
+
 bool fromTriangleMeshToMeshBuffer(const mesh_msgs::TriangleMesh& mesh, lvr::MeshBuffer& buffer)
 {
     // copy vertices

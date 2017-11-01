@@ -63,9 +63,9 @@
 #include <mesh_msgs/TriangleIndices.h>
 #include <mesh_msgs/TriangleMesh.h>
 #include <mesh_msgs/TriangleMeshStamped.h>
+
 #include <mesh_msgs/MeshGeometry.h>
-#include <mesh_msgs/MeshGeometry.h>
-#include <mesh_msgs/MeshMaterialsStamped.h>
+#include <mesh_msgs/MeshGeometryStamped.h>
 #include <mesh_msgs/MeshMaterialsStamped.h>
 #include <mesh_msgs/MeshVertexColors.h>
 #include <mesh_msgs/MeshVertexColorsStamped.h>
@@ -125,6 +125,36 @@ bool fromMeshBufferToTriangleMesh(
 bool fromMeshBufferToTriangleMesh(
     lvr::MeshBuffer& buffer,
     mesh_msgs::TriangleMesh& message
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
+    lvr2::MeshBuffer<Vec>& buffer
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
+    lvr2::MeshBuffer<Vec>& buffer
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    lvr2::MeshBuffer<Vec>& buffer
 );
 
 /**
