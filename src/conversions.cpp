@@ -74,7 +74,8 @@ bool fromMeshBufferToMeshGeometryMessage(
     {
         if(buffer_vertexnormals.size() != n_vertices)
         {
-            ROS_FATAL_STREAM("The number of normals in the MeshBuffer differs from the number of vertices! Ignoring normals!");
+            ROS_FATAL_STREAM("The number of normals in the MeshBuffer differs "
+                                 "from the number of vertices! Ignoring normals!");
         }else{
             ROS_DEBUG_STREAM("Copy normals from MeshBuffer to MeshGeometry.");
 
@@ -90,7 +91,8 @@ bool fromMeshBufferToMeshGeometryMessage(
         ROS_DEBUG_STREAM("No vertex normals given!");
     }
 
-    ROS_DEBUG_STREAM("Successfully copied the MeshBuffer geometry to the MeshGeometry message.");
+    ROS_DEBUG_STREAM("Successfully copied the MeshBuffer "
+                         "geometry to the MeshGeometry message.");
     return true;
 }
 
@@ -223,12 +225,16 @@ bool fromMeshBufferToMeshMessages(
     return true;
 }
 
-bool fromMeshBufferToTriangleMesh(const lvr::MeshBufferPtr& buffer, mesh_msgs::TriangleMesh& mesh)
+bool fromMeshBufferToTriangleMesh(
+    const lvr::MeshBufferPtr& buffer,
+    mesh_msgs::TriangleMesh& mesh)
 {
     return fromMeshBufferToTriangleMesh(*buffer, mesh);
 }
 
-bool fromMeshBufferToTriangleMesh(lvr::MeshBuffer& buffer, mesh_msgs::TriangleMesh& mesh)
+bool fromMeshBufferToTriangleMesh(
+    lvr::MeshBuffer& buffer,
+    mesh_msgs::TriangleMesh& mesh)
 {
     size_t numVertices = 0;
     size_t numFaces = 0;
@@ -361,7 +367,9 @@ bool fromMeshGeometryToMeshBuffer(
     return true;
 }
 
-bool fromTriangleMeshToMeshBuffer(const mesh_msgs::TriangleMesh& mesh, lvr::MeshBuffer& buffer)
+bool fromTriangleMeshToMeshBuffer(
+    const mesh_msgs::TriangleMesh& mesh,
+    lvr::MeshBuffer& buffer)
 {
     // copy vertices
     vector<float> vertices;

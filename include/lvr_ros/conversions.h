@@ -218,7 +218,9 @@ bool writeTriangleMesh(mesh_msgs::TriangleMesh& mesh, string path);
  * @param intensity Intensity values as std::vector<float>
  * @param mesh      ROS-TriangleMeshGeometryMessage
  */
-void intensityToTriangleRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh);
+void intensityToTriangleRainbowColors(
+    const std::vector<float>& intensity,
+    mesh_msgs::TriangleMesh& mesh);
 
 /**
  * @brief Writes intensity values as rainbow colors for the triangle colors
