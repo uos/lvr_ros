@@ -72,7 +72,7 @@ bool fromMeshBufferToMeshGeometryMessage(
     auto buffer_vertexnormals = buffer->getVertexNormals();
     if(!buffer_vertexnormals.empty())
     {
-        if(buffer_vertexnormals.size() != n_vertices)
+        if(buffer_vertexnormals.size() != n_vertices * 3)
         {
             ROS_FATAL_STREAM("The number of normals in the MeshBuffer differs "
                                  "from the number of vertices! Ignoring normals!");
