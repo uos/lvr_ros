@@ -32,12 +32,12 @@
 #include <dynamic_reconfigure/server.h>
 #include "lvr_ros/ReconstructionConfig.h"
 #include "lvr_ros/ReconstructAction.h"
-#include "lvr_ros/GetGeometry.h"
-#include "lvr_ros/GetMaterials.h"
-#include "lvr_ros/GetTexture.h"
-#include "lvr_ros/GetUUID.h"
-#include "lvr_ros/GetVertexColors.h"
-
+#include <mesh_msgs/GetGeometry.h>
+#include <mesh_msgs/GetMaterials.h>
+#include <mesh_msgs/GetTexture.h>
+#include <mesh_msgs/GetUUID.h>
+#include <mesh_msgs/GetVertexColors.h>
+#include <mesh_msgs/GetVertexCosts.h>
 
 #include <mesh_msgs/TriangleMesh.h>
 #include <mesh_msgs/TriangleMeshStamped.h>
@@ -81,11 +81,11 @@ private:
     void reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal);
 
     // Service callbacks
-    bool service_getGeometry(lvr_ros::GetGeometry::Request& req, lvr_ros::GetGeometry::Response& res);
-    bool service_getMaterials(lvr_ros::GetMaterials::Request& req, lvr_ros::GetMaterials::Response& res);
-    bool service_getTexture(lvr_ros::GetTexture::Request& req, lvr_ros::GetTexture::Response& res);
-    bool service_getUUID(lvr_ros::GetUUID::Request& req, lvr_ros::GetUUID::Response& res);
-    bool service_getVertexColors(lvr_ros::GetVertexColors::Request& req, lvr_ros::GetVertexColors::Response& res);
+    bool service_getGeometry(mesh_msgs::GetGeometry::Request& req, mesh_msgs::GetGeometry::Response& res);
+    bool service_getMaterials(mesh_msgs::GetMaterials::Request& req, mesh_msgs::GetMaterials::Response& res);
+    bool service_getTexture(mesh_msgs::GetTexture::Request& req, mesh_msgs::GetTexture::Response& res);
+    bool service_getUUID(mesh_msgs::GetUUID::Request& req, mesh_msgs::GetUUID::Response& res);
+    bool service_getVertexColors(mesh_msgs::GetVertexColors::Request& req, mesh_msgs::GetVertexColors::Response& res);
 
     // Subscriber callback
     void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud);
