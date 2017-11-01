@@ -96,6 +96,10 @@ typedef std::vector <boost::shared_ptr<MaterialGroup>> GroupVector;
 typedef boost::shared_ptr <MaterialGroup> MaterialGroupPtr;
 
 
+bool fromMeshBufferToMeshGeometryMessage(
+    const lvr2::MeshBufferPtr<Vec>& buffer,
+    mesh_msgs::MeshGeometry& mesh_geometry
+);
 
 /// Convert lvr2::MeshBuffer to various messages for services
 bool fromMeshBufferToMeshMessages(
