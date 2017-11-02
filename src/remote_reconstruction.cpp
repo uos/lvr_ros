@@ -222,7 +222,7 @@ namespace lvr_ros
                 ofs << left << setw(width) << "threads:"                   << config.threads                   << endl;
                 ofs << left << setw(width) << "sharpFeatThreshold:"        << config.sharpFeatThreshold        << endl;
                 ofs << left << setw(width) << "sharpCornThreshold:"        << config.sharpCornThreshold        << endl;
-                ofs << left << setw(width) << "ecm:"                       << config.ecm                       << endl;
+                ofs << left << setw(width) << "ecm:"                       << "'" << config.ecm << "'"                        << endl;
                 ofs << left << setw(width) << "numEdgeCollapses:"          << config.numEdgeCollapses          << endl;
                 ofs << left << setw(width) << "texturePack:"               << "'" << config.texturePack << "'" << endl;
                 ofs << left << setw(width) << "numStatsColors:"            << config.numStatsColors            << endl;
