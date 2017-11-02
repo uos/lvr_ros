@@ -63,9 +63,9 @@
 #include <mesh_msgs/TriangleIndices.h>
 #include <mesh_msgs/TriangleMesh.h>
 #include <mesh_msgs/TriangleMeshStamped.h>
+
 #include <mesh_msgs/MeshGeometry.h>
-#include <mesh_msgs/MeshGeometry.h>
-#include <mesh_msgs/MeshMaterialsStamped.h>
+#include <mesh_msgs/MeshGeometryStamped.h>
 #include <mesh_msgs/MeshMaterialsStamped.h>
 #include <mesh_msgs/MeshVertexColors.h>
 #include <mesh_msgs/MeshVertexColorsStamped.h>
@@ -96,6 +96,10 @@ typedef std::vector <boost::shared_ptr<MaterialGroup>> GroupVector;
 typedef boost::shared_ptr <MaterialGroup> MaterialGroupPtr;
 
 
+bool fromMeshBufferToMeshGeometryMessage(
+    const lvr2::MeshBufferPtr<Vec>& buffer,
+    mesh_msgs::MeshGeometry& mesh_geometry
+);
 
 /// Convert lvr2::MeshBuffer to various messages for services
 bool fromMeshBufferToMeshMessages(
@@ -121,6 +125,36 @@ bool fromMeshBufferToTriangleMesh(
 bool fromMeshBufferToTriangleMesh(
     lvr::MeshBuffer& buffer,
     mesh_msgs::TriangleMesh& message
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
+    lvr2::MeshBuffer<Vec>& buffer
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
+    lvr2::MeshBuffer<Vec>& buffer
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    lvr2::MeshBuffer<Vec>& buffer
 );
 
 /**
@@ -184,7 +218,9 @@ bool writeTriangleMesh(mesh_msgs::TriangleMesh& mesh, string path);
  * @param intensity Intensity values as std::vector<float>
  * @param mesh      ROS-TriangleMeshGeometryMessage
  */
-void intensityToTriangleRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh);
+void intensityToTriangleRainbowColors(
+    const std::vector<float>& intensity,
+    mesh_msgs::TriangleMesh& mesh);
 
 /**
  * @brief Writes intensity values as rainbow colors for the triangle colors
