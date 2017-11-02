@@ -760,4 +760,45 @@ bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBu
     ROS_DEBUG_STREAM("conversion finished.");
     return true;
 }
+
+bool fromMeshGeometryMessageToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    const lvr2::MeshBufferPtr<Vec>& buffer
+)
+{
+    // copy vertices
+    vector<float> vertices;
+    vertices.reserve(mesh_geometry.vertices.size() * 3);
+    for (auto vertex : mesh_geometry.vertices)
+    {
+        vertices.push_back(static_cast<float>(vertex.x));
+        vertices.push_back(static_cast<float>(vertex.y));
+        vertices.push_back(static_cast<float>(vertex.z));
+    }
+    buffer->setVertices(vertices);
+
+    // copy faces
+    vector<unsigned int> faces;
+    faces.reserve(mesh_geometry.faces.size() * 3);
+    for (auto face : mesh_geometry.faces)
+    {
+        faces.push_back(face.vertex_indices[0]);
+        faces.push_back(face.vertex_indices[1]);
+        faces.push_back(face.vertex_indices[2]);
+    }
+    buffer->setFaceIndices(faces);
+
+    // copy normals
+    vector<float> normals;
+    normals.reserve(mesh_geometry.vertex_normals.size() * 3);
+    for (auto normal : mesh_geometry.vertex_normals)
+    {
+        normals.push_back(static_cast<float>(normal.x));
+        normals.push_back(static_cast<float>(normal.y));
+        normals.push_back(static_cast<float>(normal.z));
+    }
+    buffer->setVertexNormals(normals);
+
+    return true;
+}
 } // end namespace
