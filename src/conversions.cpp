@@ -74,7 +74,8 @@ bool fromMeshBufferToMeshGeometryMessage(
     {
         if(buffer_vertexnormals.size() != n_vertices)
         {
-            ROS_FATAL_STREAM("The number of normals in the MeshBuffer differs from the number of vertices! Ignoring normals!");
+            ROS_FATAL_STREAM("The number of normals in the MeshBuffer differs"
+                                 "from the number of vertices! Ignoring normals!");
         }else{
             ROS_DEBUG_STREAM("Copy normals from MeshBuffer to MeshGeometry.");
 
