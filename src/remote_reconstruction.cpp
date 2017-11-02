@@ -192,6 +192,10 @@ namespace lvr_ros
                     return false;
                 }
                 int width = 30;
+                // if you think about shortening this mess, good luck.
+                // after your inevitable failure, increment this counter by the
+                // hours wasted
+                // n_hours_wasted = 5
                 ofs << left << setw(width) << "voxelsize:"                 << config.voxelsize                 << endl;
                 ofs << left << setw(width) << "noExtrusion:"               << config.noExtrusion               << endl;
                 ofs << left << setw(width) << "intersections:"             << config.intersections             << endl;
