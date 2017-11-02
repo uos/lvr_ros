@@ -334,34 +334,6 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
     lvr2::PointsetSurfacePtr<Vec> surface;
     bool use_gpu = config.useGPU;
 
-
-    if(use_gpu){
-        #ifdef GPU_FOUND
-            size_t num_points;
-            lvr::floatArr points;
-            lvr::PointBuffer old_buffer = point_buffer->toOldBuffer();
-            points = old_buffer.getPointArray(num_points);
-            lvr::floatArr normals = lvr::floatArr(new float[ num_points * 3 ]);
-            ROS_INFO_STREAM("Generate GPU kd-tree...");
-            GpuSurface gpu_surface(points, num_points);
-            ROS_INFO_STREAM("finished.");
-
-            gpu_surface.setKn(config.kn);
-            gpu_surface.setKi(config.ki);
-            gpu_surface.setFlippoint(config.flipx, config.flipy, config.flipz);
-            ROS_INFO_STREAM("Start Normal Calculation...");
-            gpu_surface.calculateNormals();
-            gpu_surface.getNormals(normals);
-            ROS_INFO_STREAM("finished.");
-            old_buffer.setPointNormalArray(normals, num_points);
-            gpu_surface.freeGPU();
-
-            new (&point_buffer) PointBufferPtr(new PointBuffer(old_buffer) );
-        #else
-            std::cout << "ERROR: GPU Driver not installed" << std::endl;
-        #endif
-    }
-
     // Create point set surface object
     if (pcm_name == "PCL")
     {
@@ -400,7 +372,36 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
     // Calculate normals if necessary
     if (!point_buffer->hasNormals() || config.recalcNormals)
     {
-        surface->calculateSurfaceNormals();
+        if(use_gpu){
+            #ifdef GPU_FOUND
+                size_t num_points;
+                lvr::floatArr points;
+                lvr::PointBuffer old_buffer = point_buffer->toOldBuffer();
+                points = old_buffer.getPointArray(num_points);
+                lvr::floatArr normals = lvr::floatArr(new float[ num_points * 3 ]);
+                ROS_INFO_STREAM("Generate GPU kd-tree...");
+                GpuSurface gpu_surface(points, num_points);
+                ROS_INFO_STREAM("finished.");
+
+                gpu_surface.setKn(config.kn);
+                gpu_surface.setKi(config.ki);
+                gpu_surface.setFlippoint(config.flipx, config.flipy, config.flipz);
+                ROS_INFO_STREAM("Start Normal Calculation...");
+                gpu_surface.calculateNormals();
+                gpu_surface.getNormals(normals);
+                ROS_INFO_STREAM("finished.");
+                old_buffer.setPointNormalArray(normals, num_points);
+                point_buffer->copyNormalsFrom(old_buffer);
+                gpu_surface.freeGPU();
+            #else
+                std::cout << "ERROR: GPU Driver not installed" << std::endl;
+                surface->calculateSurfaceNormals();
+            #endif
+        }
+        else
+        {
+            surface->calculateSurfaceNormals();
+        }
     }
     else
     {
