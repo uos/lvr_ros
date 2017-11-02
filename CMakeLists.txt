@@ -35,17 +35,6 @@ add_action_files(
   StartReconstruction.action
 )
 
-add_service_files(
-  DIRECTORY
-  service
-  FILES
-  GetGeometry.srv
-  GetMaterials.srv
-  GetTexture.srv
-  GetUUID.srv
-  GetVertexColors.srv
-)
-
 find_path(OPENGL_INC gl.h /usr/include/GL)
 include_directories(${OPENGL_INC})
 
@@ -147,17 +136,7 @@ target_link_libraries(${PROJECT_NAME}_debug
     ${PROJECT_NAME}_conversions
 )
 
-add_dependencies(${PROJECT_NAME}_reconstruction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
 add_dependencies(${PROJECT_NAME}_remote_reconstruction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
-add_executable(${PROJECT_NAME}_display
-    src/display.cpp
-)
-target_link_libraries(${PROJECT_NAME}_display
-    ${catkin_LIBRARIES}
-    ${LVR_LIBRARIES}
-    ${PCL_LIBRARIES}
-)
-
 add_dependencies(${PROJECT_NAME}_reconstruction
         ${lvr_ros_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS}
@@ -165,13 +144,12 @@ add_dependencies(${PROJECT_NAME}_reconstruction
 )
 add_dependencies(${PROJECT_NAME}_conversions ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
 add_dependencies(${PROJECT_NAME}_debug ${catkin_EXPORTED_TARGETS})
-add_dependencies(${PROJECT_NAME}_display ${catkin_EXPORTED_TARGETS} ${lvr_ros_EXPORTED_TARGETS})
 
 install(
   DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 install(
-  TARGETS ${PROJECT_NAME}_conversions ${PROJECT_NAME}_reconstruction ${PROJECT_NAME}_debug ${PROJECT_NAME}_display
+  TARGETS ${PROJECT_NAME}_conversions ${PROJECT_NAME}_reconstruction ${PROJECT_NAME}_debug
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
