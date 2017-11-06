@@ -134,7 +134,7 @@ void Reconstruction::reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal)
         lvr_ros::ReconstructResult result;
         mesh_msgs::TriangleMeshStamped mesh; // deprecated
         createMeshMessageFromPointCloud(goal->cloud, mesh);
-        result.mesh = cache_uuid;
+        result.mesh = cache_mesh_geometry_stamped;
         as_.setSucceeded(result, "Published mesh.");
     }
     catch(std::exception& e)

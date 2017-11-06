@@ -7,5 +7,5 @@
 
 sensor_msgs/PointCloud2 cloud
 ---
-string mesh
+mesh_msgs/MeshGeometryStamped mesh
 ---
