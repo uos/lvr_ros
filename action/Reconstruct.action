@@ -7,6 +7,5 @@
 
 sensor_msgs/PointCloud2 cloud
 ---
-mesh_msgs/TriangleMeshStamped mesh
-string uuid
+string mesh
 ---
