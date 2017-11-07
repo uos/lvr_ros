@@ -466,9 +466,9 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
     // =======================================================================
     // Optimize and finalize mesh
     // =======================================================================
-    if(config.danglingArtifacts != 0)
+    if(config.rda != 0)
     {
-        removeDanglingCluster(mesh, static_cast<size_t>(config.danglingArtifacts));
+        removeDanglingCluster(mesh, static_cast<size_t>(config.rda));
     }
 
     // Magic number from lvr1 `cleanContours`...
@@ -484,9 +484,9 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
         clusterBiMap = iterativePlanarClusterGrowing(
             mesh,
             faceNormals,
-            config.normalThreshold,
+            config.pnt,
             config.planeIterations,
-            config.minPlaneSize
+            config.mp
         );
 
         if (config.smallRegionThreshold > 0)
@@ -500,7 +500,7 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
     }
     else
     {
-        clusterBiMap = planarClusterGrowing(mesh, faceNormals, config.normalThreshold);
+        clusterBiMap = planarClusterGrowing(mesh, faceNormals, config.pnt);
     }
 
     // Calc normals for vertices
