@@ -196,45 +196,57 @@ namespace lvr_ros
                 // after your inevitable failure, increment this counter by the
                 // hours wasted
                 // n_hours_wasted = 5
-                ofs << left << setw(width) << "voxelsize:"                 << config.voxelsize                 << endl;
-                ofs << left << setw(width) << "noExtrusion:"               << config.noExtrusion               << endl;
-                ofs << left << setw(width) << "intersections:"             << config.intersections             << endl;
-                ofs << left << setw(width) << "pcm:"                       << "'" << config.pcm << "'"          << endl;
-                ofs << left << setw(width) << "ransac:"                    << config.ransac                    << endl;
-                ofs << left << setw(width) << "decomposition:"             << "'" << config.decomposition << "'" << endl;
-                ofs << left << setw(width) << "optimizePlanes:"            << config.optimizePlanes            << endl;
-                ofs << left << setw(width) << "clusterPlanes:"             << config.clusterPlanes             << endl;
-                ofs << left << setw(width) << "cleanContours:"             << config.cleanContours             << endl;
-                ofs << left << setw(width) << "planeIterations:"           << config.planeIterations           << endl;
-                ofs << left << setw(width) << "fillHoles:"                 << config.fillHoles                 << endl;
-                ofs << left << setw(width) << "danglingArtifacts:"         << config.danglingArtifacts         << endl;
-                ofs << left << setw(width) << "normalThreshold:"           << config.normalThreshold           << endl;
-                ofs << left << setw(width) << "smallRegionThreshold:"      << config.smallRegionThreshold      << endl;
-                ofs << left << setw(width) << "kd:"                        << config.kd                        << endl;
-                ofs << left << setw(width) << "ki:"                        << config.ki                        << endl;
-                ofs << left << setw(width) << "kn:"                        << config.kn                        << endl;
-                ofs << left << setw(width) << "minPlaneSize:"              << config.minPlaneSize              << endl;
-                ofs << left << setw(width) << "retesselate:"               << config.retesselate               << endl;
-                ofs << left << setw(width) << "lineFusionThreshold:"       << config.lineFusionThreshold       << endl;
-                ofs << left << setw(width) << "generateTextures:"          << config.generateTextures          << endl;
-                ofs << left << setw(width) << "textureAnalysis:"           << config.textureAnalysis           << endl;
-                ofs << left << setw(width) << "writeClassificationResult:" << config.writeClassificationResult << endl;
-                ofs << left << setw(width) << "texelSize:"                 << config.texelSize                 << endl;
-                ofs << left << setw(width) << "classifier:"                << "'" << config.classifier  << "'" << endl;
-                ofs << left << setw(width) << "depth:"                     << config.depth                     << endl;
-                ofs << left << setw(width) << "recalcNormals:"             << config.recalcNormals             << endl;
-                ofs << left << setw(width) << "threads:"                   << config.threads                   << endl;
-                ofs << left << setw(width) << "sharpFeatThreshold:"        << config.sharpFeatThreshold        << endl;
-                ofs << left << setw(width) << "sharpCornThreshold:"        << config.sharpCornThreshold        << endl;
-                ofs << left << setw(width) << "ecm:"                       << "'" << config.ecm << "'"                        << endl;
-                ofs << left << setw(width) << "numEdgeCollapses:"          << config.numEdgeCollapses          << endl;
-                ofs << left << setw(width) << "texturePack:"               << "'" << config.texturePack << "'" << endl;
-                ofs << left << setw(width) << "numStatsColors:"            << config.numStatsColors            << endl;
-                ofs << left << setw(width) << "numCCVColors:"              << config.numCCVColors              << endl;
-                ofs << left << setw(width) << "coherenceThreshold:"        << config.coherenceThreshold        << endl;
-                ofs << left << setw(width) << "useCrossCorr:"              << config.useCrossCorr              << endl;
-                ofs << left << setw(width) << "patternThreshold:"          << config.patternThreshold          << endl;
-                ofs << left << setw(width) << "minTransformVotes:"         << config.minTransformVotes         << endl;
+
+                // macro for writing each parameter to the yaml stream
+                // @param name The parameter name
+                // @param quote Whether or not the parameter must be quoted in
+                // the output
+                #define PARAM(name, quote)\
+                    left << setw(width) << #name\
+                    << ": " << (quote ? "'" : "")\
+                    << config.name << (quote ? "'" : "")
+                ofs << boolalpha
+                  << PARAM(noExtrusion,          false) << endl
+                  << PARAM(intersections,        false) << endl
+                  << PARAM(pcm,                  true)  << endl
+                  << PARAM(ransac,               false) << endl
+                  << PARAM(decomposition,        true)  << endl
+                  << PARAM(optimizePlanes,       false) << endl
+                  << PARAM(clusterPlanes,        false) << endl
+                  << PARAM(cleanContours,        false) << endl
+                  << PARAM(planeIterations,      false) << endl
+                  << PARAM(fillHoles,            false) << endl
+                  << PARAM(rda,                  false) << endl
+                  << PARAM(pnt,                  false) << endl
+                  << PARAM(smallRegionThreshold, false) << endl
+                  << PARAM(kd,                   false) << endl
+                  << PARAM(ki,                   false) << endl
+                  << PARAM(kn,                   false) << endl
+                  << PARAM(mp,                   false) << endl
+                  << PARAM(retesselate,          false) << endl
+                  << PARAM(lft,                  false) << endl
+                  << PARAM(generateTextures,     false) << endl
+                  << PARAM(texMinClusterSize,    false) << endl
+                  << PARAM(texMaxClusterSize,    false) << endl
+                  << PARAM(textureAnalysis,      false) << endl
+                  << PARAM(texelSize,            false) << endl
+                  << PARAM(classifier,           true)  << endl
+                  << PARAM(recalcNormals,        false) << endl
+                  << PARAM(threads,              false) << endl
+                  << PARAM(sft,                  false) << endl
+                  << PARAM(sct,                  false) << endl
+                  << PARAM(reductionRatio,       false) << endl
+                  << PARAM(tp,                   true)  << endl
+                  << PARAM(co,                   true)  << endl
+                  << PARAM(nsc,                  false) << endl
+                  << PARAM(nccv,                 false) << endl
+                  << PARAM(ct,                   false) << endl
+                  << PARAM(colt,                 false) << endl
+                  << PARAM(stat,                 false) << endl
+                  << PARAM(feat,                 false) << endl
+                  << PARAM(cro,                  false) << endl
+                  << PARAM(patt,                 false) << endl
+                  << PARAM(vcfp,                 false) << endl;
                 ofs.close();
                 return true;
             }
