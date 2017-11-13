@@ -12,6 +12,12 @@ set(PACKAGE_DEPENDENCIES
   message_runtime
   roscpp
   sensor_msgs
+  geometry_msgs
+  hyperspectral_calibration
+  move_base_flex
+  tf
+  pcl_ros
+  pcl_definitions
 )
 
 find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})
@@ -25,6 +31,8 @@ add_action_files(
   action
   FILES
   Reconstruct.action
+  SendCloud.action
+  StartReconstruction.action
 )
 
 find_path(OPENGL_INC gl.h /usr/include/GL)
@@ -63,6 +71,7 @@ generate_messages(
   actionlib_msgs
   mesh_msgs
   sensor_msgs
+  geometry_msgs
 )
 
 catkin_package(
@@ -94,6 +103,25 @@ target_link_libraries(${PROJECT_NAME}_reconstruction
     ${PCL_LIBRARIES}
 )
 
+add_executable(${PROJECT_NAME}_remote_reconstruction_client
+    src/remote_reconstruction_client.cpp
+)
+
+add_executable(${PROJECT_NAME}_remote_reconstruction
+  src/colors.cpp
+  src/conversions.cpp
+  src/remote_reconstruction.cpp
+)
+target_link_libraries(${PROJECT_NAME}_remote_reconstruction
+    ${catkin_LIBRARIES}
+    ${LVR_LIBRARIES}
+    ${PCL_LIBRARIES}
+)
+
+target_link_libraries(${PROJECT_NAME}_remote_reconstruction_client
+    ${catkin_LIBRARIES}
+    ${PCL_LIBRARIES}
+)
 if(OPENCL_FOUND)
     target_compile_definitions(${PROJECT_NAME}_reconstruction PRIVATE OPENCL_FOUND=1)
 endif()
@@ -108,6 +136,7 @@ target_link_libraries(${PROJECT_NAME}_debug
     ${PROJECT_NAME}_conversions
 )
 
+add_dependencies(${PROJECT_NAME}_remote_reconstruction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
 add_dependencies(${PROJECT_NAME}_reconstruction
         ${lvr_ros_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS}
