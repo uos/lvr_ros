@@ -384,7 +384,7 @@ inline void M3inv( const T *Min, T *Mout )
  * @param *outMatrixr pointer to matrix (double[16])
  */
 inline void to3DTKMat(const double *inMatrix,
-				  double *outMatrix)
+                  double *outMatrix)
 {
     outMatrix[0] = inMatrix[5];
     outMatrix[1] = -inMatrix[9];
