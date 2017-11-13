@@ -1,6 +1,6 @@
 voxelsize:            0.1
 noExtrusion:          False
-intersections:        -1,                                                                                                            -1,        10000
+intersections:        0
 pcm:                  "FLANN"
 ransac:               False
 decomposition:        "PMC"
