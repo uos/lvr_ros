@@ -4,7 +4,7 @@ intersections:        0
 pcm:                  "FLANN"
 ransac:               False
 decomposition:        "PMC"
-optimizePlanes:       True
+optimizePlanes:       False
 clusterPlanes:        False
 cleanContours:        0
 planeIterations:      3
@@ -16,7 +16,7 @@ kd:                   50
 ki:                   50
 kn:                   50
 mp:                   7
-retesselate:          True
+retesselate:          False
 lft:                  0.01
 generateTextures:     False
 texMinClusterSize:    100
@@ -40,7 +40,7 @@ feat:                 1.7976931348623157e+308
 cro:                  False
 patt:                 100
 vcfp:                 False
-useGPU:               False
+useGPU:               True
 flipx:                -1000000
 flipy:                -1000000
 flipz:                -1000000
