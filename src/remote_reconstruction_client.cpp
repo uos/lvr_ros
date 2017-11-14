@@ -73,10 +73,17 @@ class CloudClient
         cloud_sub = nh.subscribe<sensor_msgs::PointCloud2>("/riegl_cloud", 5,
                 &CloudClient::pointCloudCallback, this);
         ROS_INFO_STREAM("Waiting for servers.");
-        nh.getParam("numClouds", max_clouds);
-        ROS_INFO_STREAM("Will stop after " << max_clouds << " clouds.");
-        client_send.waitForServer();
-        client_reconstruct.waitForServer();
+        if (not nh.hasParam("numClouds"))
+        {
+            ROS_ERROR("Don't know how many clouds to expect.");
+            exit(1);
+        } else
+        {
+            nh.getParam("numClouds", max_clouds);
+            ROS_INFO_STREAM("Will stop after " << max_clouds << " clouds.");
+            client_send.waitForServer();
+            client_reconstruct.waitForServer();
+        }
     }
 };
 
