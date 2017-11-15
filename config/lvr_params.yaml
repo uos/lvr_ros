@@ -1,46 +1,59 @@
-voxelsize:            0.1
-noExtrusion:          False
-intersections:        0
-pcm:                  "FLANN"
-ransac:               False
-decomposition:        "PMC"
-optimizePlanes:       False
+# point operations
+kd:                   50            # LVR2
+ki:                   50            # LVR2
+kn:                   50            # LVR2
+pcm:                  "FLANN"       # LVR2
+ransac:               False         # LVR2
+recalcNormals:        False         # LVR2
+
+# mesh generation (marching cubes)
+decomposition:        "PMC"         # LVR2
+intersections:        0             # LVR2
+noExtrusion:          False         # LVR2
+voxelsize:            0.1           # LVR2
+
+# mesh optimisation
+cleanContours:        0             # LVR2
 clusterPlanes:        False
-cleanContours:        0
-planeIterations:      3
-fillHoles:            30
-rda:                  0
-pnt:                  0.85
-smallRegionThreshold: 10
-kd:                   50
-ki:                   50
-kn:                   50
-mp:                   7
-retesselate:          False
+fillHoles:            30            # LVR2
 lft:                  0.01
-generateTextures:     False
-texMinClusterSize:    100
-texMaxClusterSize:    0
-textureAnalysis:      False
-texelSize:            0.01
-classifier:           "PlaneSimpsons"
-recalcNormals:        False
-threads:              8
-sft:                  0.9
-sct:                  0.7
+mp:                   7             # LVR2
+optimizePlanes:       False         # LVR2
+planeIterations:      3             # LVR2
+smallRegionThreshold: 10            # LVR2
+pnt:                  0.85          # LVR2
+rda:                  0             # LVR2
 reductionRatio:       0.0
-tp:                   ""
-co:                   ""
+retesselate:          False
+
+# textures
+generateTextures:     False         # LVR2
 nsc:                  16
-nccv:                 64
-ct:                   50
-colt:                 1.7976931348623157e+308
-stat:                 1.7976931348623157e+308
-feat:                 1.7976931348623157e+308
-cro:                  False
 patt:                 100
+sct:                  0.7
+sft:                  0.9
+texelSize:            0.01          # LVR2
+texMaxClusterSize:    0             # LVR2
+texMinClusterSize:    100           # LVR2
+tp:                   ""
+
+## texture matching
+textureAnalysis:      False
+colt:                 1.7976931348623157e+308
+feat:                 1.7976931348623157e+308
+stat:                 1.7976931348623157e+308
+cro:                  False
+ct:                   50
+nccv:                 64
+co:                   ""
+
+# opencl
+useGPU:               True          # LVR2
+flipx:                -1000000      # LVR2
+flipy:                -1000000      # LVR2
+flipz:                -1000000      # LVR2
+
+# general
+classifier:           "PlaneSimpsons"
+threads:              8                 # LVR2
 vcfp:                 False
-useGPU:               True
-flipx:                -1000000
-flipy:                -1000000
-flipz:                -1000000
