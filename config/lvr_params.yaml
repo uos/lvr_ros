@@ -39,9 +39,9 @@ tp:                   ""
 
 ## texture matching
 textureAnalysis:      False
-colt:                 1.7976931348623157e+308
-feat:                 1.7976931348623157e+308
-stat:                 1.7976931348623157e+308
+colt:                 3.4028234663852886e+38
+feat:                 3.4028234663852886e+38
+stat:                 3.4028234663852886e+38
 cro:                  False
 ct:                   50
 nccv:                 64
