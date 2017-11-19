@@ -1,6 +1,8 @@
 #include "lvr_ros/ReconstructionConfig.h"
 #include "lvr_ros/SendCloudAction.h"
 #include "lvr_ros/StartReconstructionAction.h"
+#include "lvr_ros/StartReconstructionAction.h"
+#include "lvr_ros/FileObserver.hpp"
 
 #include <pcl_definitions/types/types.hpp>
 #include <pcl_definitions/utils.hpp>
@@ -151,7 +153,8 @@ namespace lvr_ros
                     boost::bind(&RemoteReconstruction::sendCloud, this, _1), false),
             reconstruct_as(node_handle, "reconstruct",
                     boost::bind(&RemoteReconstruction::startReconstruction, this, _1), false),
-            transform_listener(ros::Duration(60.0))
+            transform_listener(ros::Duration(60.0)),
+            observer(local_box_directory)
         {
 
             mesh_publisher = node_handle.advertise<mesh_msgs::TriangleMeshStamped>("/mesh", 1);
@@ -172,6 +175,8 @@ namespace lvr_ros
         }
 
         private:
+
+            FileObserver observer;
 
             /**
              * @brief Save all dyn_conf parameters. NOTE: When adding/removing
