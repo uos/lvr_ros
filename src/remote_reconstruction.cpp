@@ -149,12 +149,16 @@ namespace lvr_ros
     class RemoteReconstruction
     {
         public:
-            RemoteReconstruction() : send_as(node_handle, "send",
-                    boost::bind(&RemoteReconstruction::sendCloud, this, _1), false),
-            reconstruct_as(node_handle, "reconstruct",
-                    boost::bind(&RemoteReconstruction::startReconstruction, this, _1), false),
-            transform_listener(ros::Duration(60.0)),
-            observer(local_box_directory)
+            RemoteReconstruction() :
+                send_as(node_handle,
+                        "send",
+                        boost::bind(&RemoteReconstruction::sendCloud, this, _1), false),
+                reconstruct_as(node_handle,
+                               "reconstruct",
+                                boost::bind(&RemoteReconstruction::startReconstruction, this, _1),
+                                false),
+                transform_listener(ros::Duration(60.0)),
+                observer(local_box_directory)
         {
 
             mesh_publisher = node_handle.advertise<mesh_msgs::TriangleMeshStamped>("/mesh", 1);
@@ -172,6 +176,13 @@ namespace lvr_ros
                 bfs::create_directory(remote_box_directory);
             }
             n_clouds = 0;
+
+            this->observer.on_modified(std::bind(&RemoteReconstruction::fileModified,
+                        this, std::placeholders::_1));
+            this->observer.on_deleted(std::bind(&RemoteReconstruction::fileDeleted,
+                        this, std::placeholders::_1));
+            this->observer.on_created(std::bind(&RemoteReconstruction::fileCreated,
+                        this, std::placeholders::_1));
         }
 
         private:
@@ -417,6 +428,21 @@ namespace lvr_ros
                         }
                     }
                 }
+            }
+
+            void fileModified(const FSEvent& event)
+            {
+                std::cout << "File " << event.file << " was modified." << std::endl;
+            }
+
+            void fileCreated(const FSEvent& event)
+            {
+                std::cout << "File " << event.file << " was created." << std::endl;
+            }
+
+            void fileDeleted(const FSEvent& event)
+            {
+                std::cout << "File " << event.file << " was deleted." << std::endl;
             }
 
             DynReconfigureServerPtr reconfigure_server_ptr;
