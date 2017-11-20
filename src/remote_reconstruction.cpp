@@ -41,13 +41,13 @@
 
 bool getTransform(double *t, double *ti, double *rP, double *rPT,
         tf::TransformListener& listener, ros::Time time,
-        const std::string fixed_frame="riegl_meas_origin",
-        const std::string robot_frame="odom_combined"
+        const string fixed_frame="riegl_meas_origin",
+        const string robot_frame="odom_combined"
 )
 {
     tf::StampedTransform transform;
 
-    std::string error_msg;
+    string error_msg;
     bool success = listener.waitForTransform(robot_frame, fixed_frame, time,
             ros::Duration(3.0), ros::Duration(0.01), &error_msg);
 
@@ -152,7 +152,7 @@ namespace lvr_ros
     class RemoteReconstruction
     {
         public:
-            RemoteReconstruction() :
+            RemoteReconstruction(const string remote_host = "localhost") :
                 send_as(node_handle,
                         "send",
                         boost::bind(&RemoteReconstruction::sendCloud, this, _1), false),
@@ -161,7 +161,8 @@ namespace lvr_ros
                                 boost::bind(&RemoteReconstruction::startReconstruction, this, _1),
                                 false),
                 transform_listener(ros::Duration(60.0)),
-                observer(local_box_directory)
+                observer(local_box_directory),
+                remote_host(remote_host)
         {
 
             mesh_publisher = node_handle.advertise<mesh_msgs::TriangleMeshStamped>("/mesh", 1);
@@ -180,18 +181,19 @@ namespace lvr_ros
             }
             n_clouds = 0;
 
-            this->observer.on_modified(std::bind(&RemoteReconstruction::fileModified,
-                        this, std::placeholders::_1));
-            this->observer.on_deleted(std::bind(&RemoteReconstruction::fileDeleted,
-                        this, std::placeholders::_1));
-            this->observer.on_created(std::bind(&RemoteReconstruction::fileCreated,
-                        this, std::placeholders::_1));
+            this->observer.on_modified(bind(&RemoteReconstruction::fileModified,
+                        this, placeholders::_1));
+            this->observer.on_deleted(bind(&RemoteReconstruction::fileDeleted,
+                        this, placeholders::_1));
+            this->observer.on_created(bind(&RemoteReconstruction::fileCreated,
+                        this, placeholders::_1));
         }
 
         private:
-            std::condition_variable cv;
-            std::mutex cv_m;
+            condition_variable cv;
+            mutex cv_m;
             FileObserver observer;
+            string remote_host;
 
             /**
              * @brief Save all dyn_conf parameters. NOTE: When adding/removing
@@ -278,7 +280,6 @@ namespace lvr_ros
                 // get temporary file to save cloud to
                 PLYWriter writer;
                 int res = writer.write(tmp_fname, *transformed_cloud_ptr, true, false);
-                ROS_INFO_STREAM("Result: " << res);
                 return res == 0;
             }
 
@@ -355,7 +356,7 @@ namespace lvr_ros
                 stringstream command;
                 command << "scp ";
                 command << tmp_fname;
-                command << " localhost:" << remote_box_directory / bfs::path(string(file_base)) << ".ply";
+                command << " " << remote_host << ":" << remote_box_directory / bfs::path(string(file_base)) << ".ply";
 
                 ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
                 int res = system(command.str().c_str());
@@ -371,7 +372,7 @@ namespace lvr_ros
                 command.str(string());
                 command.clear();
                 command << "scp " << local_box_directory / pose_fname;
-                command << " localhost:" << remote_box_directory / bfs::path(string(file_base)) << ".pose";
+                command << " " << remote_host << ":" << remote_box_directory / bfs::path(string(file_base)) << ".pose";
 
                 ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
                 res = system(command.str().c_str());
@@ -402,7 +403,7 @@ namespace lvr_ros
                      *  Copy config file  *
                      **********************/
                     command << "scp " << local_box_directory / config_fname;
-                    command << " localhost:" << remote_box_directory;
+                    command << " " << remote_host << ":" << remote_box_directory;
 
                     ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
 
@@ -417,7 +418,7 @@ namespace lvr_ros
                         command.clear();
                         command << "scp ";
                         command << local_box_directory / trigger_fname;
-                        command << " localhost:" << remote_box_directory;
+                        command << " " << remote_host << ":" << remote_box_directory;
 
                         ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
 
@@ -429,10 +430,11 @@ namespace lvr_ros
                         } else
                         {
                             ROS_INFO_STREAM("Waiting for Mesh...");
-                            std::unique_lock<std::mutex> lock(cv_m);
+                            unique_lock<mutex> lock(cv_m);
                             cv.wait(lock);
                             // TODO: Check if mesh is good
                             reconstruct_as.setSucceeded();
+                            ROS_INFO_STREAM("Reconstruction finished.");
                         }
                     }
                 }
@@ -443,7 +445,7 @@ namespace lvr_ros
 
                 if (event.file == (local_box_directory / ready_fname))
                 {
-                    std::cout << "Waking up..." << std::endl;
+                    cout << "Waking up..." << endl;
                     cv.notify_all();
                 }
             }
@@ -460,7 +462,7 @@ namespace lvr_ros
 
             void fileDeleted(const FSEvent& event)
             {
-                std::cout << "File " << event.file << " was deleted." << std::endl;
+                cout << "File " << event.file << " was deleted." << endl;
             }
 
             DynReconfigureServerPtr reconfigure_server_ptr;
