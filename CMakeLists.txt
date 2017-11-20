@@ -111,6 +111,7 @@ add_executable(${PROJECT_NAME}_remote_reconstruction
   src/colors.cpp
   src/conversions.cpp
   src/remote_reconstruction.cpp
+  src/FileObserver.cpp
 )
 target_link_libraries(${PROJECT_NAME}_remote_reconstruction
     ${catkin_LIBRARIES}
