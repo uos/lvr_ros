@@ -7,6 +7,8 @@
 #include <pcl_definitions/types/types.hpp>
 #include <pcl_definitions/utils.hpp>
 
+#include <condition_variable>
+#include <thread>
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
@@ -139,11 +141,12 @@ namespace lvr_ros
     typedef actionlib::SimpleActionServer<lvr_ros::StartReconstructionAction>
         StartReconstructionActionServer;
 
-    static const bfs::path remote_box_directory("/tmp/clouds_remote");
-    static const bfs::path local_box_directory("/tmp/clouds_local");
-    static const bfs::path trigger_fname = ".start_reconstruction";
-    static const bfs::path pose_fname    = "pose.pose";
-    static const bfs::path config_fname  = "remote_reconstruction_config.yaml";
+    static const bfs::path remote_box_directory = "/tmp/clouds_remote";
+    static const bfs::path local_box_directory  = "/tmp/clouds_local";
+    static const bfs::path trigger_fname        = ".start_reconstruction";
+    static const bfs::path pose_fname           = "pose.pose";
+    static const bfs::path config_fname         = "remote_reconstruction_config.yaml";
+    static const bfs::path ready_fname          = ".done";
 
 
     class RemoteReconstruction
@@ -186,7 +189,8 @@ namespace lvr_ros
         }
 
         private:
-
+            std::condition_variable cv;
+            std::mutex cv_m;
             FileObserver observer;
 
             /**
@@ -273,8 +277,6 @@ namespace lvr_ros
                 const PointCloud<RieglPoint>::Ptr transformed_cloud_ptr  = convert_coords_ros_3dtk(cloud);
                 // get temporary file to save cloud to
                 PLYWriter writer;
-                //                             write in binary
-                //                                   |
                 int res = writer.write(tmp_fname, *transformed_cloud_ptr, true, false);
                 ROS_INFO_STREAM("Result: " << res);
                 return res == 0;
@@ -304,7 +306,7 @@ namespace lvr_ros
                     return false;
                 } else
                 {
-                    ofs << "settings: wueva\n";
+                    ofs << "Wer das liest, ist doof.\n";
                     ofs.close();
                     return true;
                 }
@@ -396,48 +398,64 @@ namespace lvr_ros
                 } else
                 {
                     stringstream command;
-                    command << "scp ";
-                    command << local_box_directory / trigger_fname;
+                    /**********************
+                     *  Copy config file  *
+                     **********************/
+                    command << "scp " << local_box_directory / config_fname;
                     command << " localhost:" << remote_box_directory;
 
                     ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
+
                     int res = system(command.str().c_str());
                     if (res != 0)
                     {
-                        ROS_ERROR_STREAM("Could not transfer trigger file. (" << res << ")");
+                        ROS_ERROR_STREAM("Could not write config file. (" << res << ")");
                         reconstruct_as.setAborted();
                     } else
                     {
-                        /**********************
-                         *  Copy config file  *
-                         **********************/
                         command.str(string());
                         command.clear();
-                        command << "scp " << local_box_directory / config_fname;
+                        command << "scp ";
+                        command << local_box_directory / trigger_fname;
                         command << " localhost:" << remote_box_directory;
 
                         ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
+
                         res = system(command.str().c_str());
                         if (res != 0)
                         {
-                            ROS_ERROR_STREAM("Config file was not sent successfully. (" << res << ")");
+                            ROS_ERROR_STREAM("Could not write trigger file. (" << res << ")");
                             send_as.setAborted();
                         } else
                         {
+                            ROS_INFO_STREAM("Waiting for Mesh...");
+                            std::unique_lock<std::mutex> lock(cv_m);
+                            cv.wait(lock);
+                            // TODO: Check if mesh is good
                             reconstruct_as.setSucceeded();
                         }
                     }
                 }
             }
 
+            void onAnyEvent(const FSEvent& event)
+            {
+
+                if (event.file == (local_box_directory / ready_fname))
+                {
+                    std::cout << "Waking up..." << std::endl;
+                    cv.notify_all();
+                }
+            }
+
             void fileModified(const FSEvent& event)
             {
-                std::cout << "File " << event.file << " was modified." << std::endl;
+                this->onAnyEvent(event);
             }
 
             void fileCreated(const FSEvent& event)
             {
-                std::cout << "File " << event.file << " was created." << std::endl;
+                this->onAnyEvent(event);
             }
 
             void fileDeleted(const FSEvent& event)
