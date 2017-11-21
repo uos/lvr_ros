@@ -1465,7 +1465,7 @@ bool getTransform(double *t, double *ti, double *rP, double *rPT,
     tf::StampedTransform transform;
 
     string error_msg;
-    bool success = listener.waitForTransform(robot_frame, fixed_frame, time,
+    bool success = listener.waitForTransform(global_frame, fixed_frame, time,
             ros::Duration(3.0), ros::Duration(0.01), &error_msg);
 
     if (!success)
@@ -1474,7 +1474,7 @@ bool getTransform(double *t, double *ti, double *rP, double *rPT,
         return false;
     }
 
-    listener.lookupTransform(robot_frame, fixed_frame, time, transform);
+    listener.lookupTransform(global_frame, fixed_frame, time, transform);
 
     double mat[9];
     double x = transform.getOrigin().getX() * 100;
