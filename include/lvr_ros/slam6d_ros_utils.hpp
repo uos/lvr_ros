@@ -1433,5 +1433,112 @@ inline std::string trim(const std::string& source)
   return source.substr(start, end - start + 1);
 }
 
+/*******************************************************************************
+*                       Additions by Rasmus for plutogo                       *
+*******************************************************************************/
+
+/**
+ * @brief Obtain the transformation from one frame to another in a form that can
+ * be read by slam6d. One frame is assumed to be the global frame, the other one
+ * the frame from which values should be transformed. The resulting transform is
+ * hence the pose of the object whose frame is fixed_framed.
+ *
+ * @param[out] t Output pose, component 1
+ * @param[out] ti Output pose, component 2
+ * @param[out] rP Output pose, component 3
+ * @param[out] rPT Output pose, component 4
+ * @param listener Listener to query for tf transforms
+ * @param time timestamp to query for
+ * @param fixed_frame In plutogo setup, the scanner frame relative to which all
+ *                    point clouds are given
+ * @param global_frame Usually the robot frame (base_link or whatever)
+ *
+ * @return Success or failure
+ */
+bool getTransform(double *t, double *ti, double *rP, double *rPT,
+        tf::TransformListener& listener, ros::Time time,
+        const std::string fixed_frame="riegl_meas_origin",
+        const std::string global_frame="odom_combined"
+)
+{
+    using namespace std;
+    tf::StampedTransform transform;
+
+    string error_msg;
+    bool success = listener.waitForTransform(robot_frame, fixed_frame, time,
+            ros::Duration(3.0), ros::Duration(0.01), &error_msg);
+
+    if (!success)
+    {
+        ROS_WARN("Could not get transform, ignoring point cloud! %s", error_msg.c_str());
+        return false;
+    }
+
+    listener.lookupTransform(robot_frame, fixed_frame, time, transform);
+
+    double mat[9];
+    double x = transform.getOrigin().getX() * 100;
+    double y = transform.getOrigin().getY() * 100;
+    double z = transform.getOrigin().getZ() * 100;
+    mat[0] = transform.getBasis().getRow(0).getX();
+    mat[1] = transform.getBasis().getRow(0).getY();
+    mat[2] = transform.getBasis().getRow(0).getZ();
+
+    mat[3] = transform.getBasis().getRow(1).getX();
+    mat[4] = transform.getBasis().getRow(1).getY();
+    mat[5] = transform.getBasis().getRow(1).getZ();
+
+    mat[6] = transform.getBasis().getRow(2).getX();
+    mat[7] = transform.getBasis().getRow(2).getY();
+    mat[8] = transform.getBasis().getRow(2).getZ();
+
+    t[0] = mat[4];
+    t[1] = -mat[7];
+    t[2] = -mat[1];
+    t[3] = 0.0;
+
+    t[4] = -mat[5];
+    t[5] = mat[8];
+    t[6] = mat[2];
+    t[7] = 0.0;
+
+    t[8] = -mat[3];
+    t[9] = mat[6];
+    t[10] = mat[0];
+    t[11] = 0.0;
+
+    // translation
+    t[12] = -y;
+    t[13] = z;
+    t[14] = x;
+    t[15] = 1;
+    M4inv(t, ti);
+    Matrix4ToEuler(t, rPT, rP);
+
+    return true;
+}
+
+/**
+ * @brief Perform coordinate transform from ROS/PCL to 3DTK
+ */
+static pcl::PointCloud<RieglPoint>::Ptr convert_coords_ros_3dtk(
+    const sensor_msgs::PointCloud2& cloud
+)
+{
+    using namespace pcl;
+    using namespace ros;
+
+    PointCloud<RieglPoint>::Ptr cloud_pcl(new PointCloud<RieglPoint>);
+    fromROSMsg<RieglPoint>(cloud, *cloud_pcl);
+    for (auto& point : cloud_pcl->points)
+    {
+        RieglPoint point_slam6d = ros2slam6d(point);
+        point = point_slam6d;
+    }
+    return cloud_pcl;
+}
+
+
+
 #endif // __GLOBALS_ICC__
 
