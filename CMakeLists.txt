@@ -33,6 +33,7 @@ add_action_files(
   Reconstruct.action
   SendCloud.action
   StartReconstruction.action
+  StopReconstruction.action
 )
 
 find_path(OPENGL_INC gl.h /usr/include/GL)
