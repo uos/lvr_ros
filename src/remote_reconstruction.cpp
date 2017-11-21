@@ -1,7 +1,7 @@
 #include "lvr_ros/ReconstructionConfig.h"
 #include "lvr_ros/SendCloudAction.h"
 #include "lvr_ros/StartReconstructionAction.h"
-#include "lvr_ros/StartReconstructionAction.h"
+#include "lvr_ros/StopReconstructionAction.h"
 #include "lvr_ros/FileObserver.hpp"
 
 #include <pcl_definitions/types/types.hpp>
@@ -41,10 +41,11 @@
 
 bool getTransform(double *t, double *ti, double *rP, double *rPT,
         tf::TransformListener& listener, ros::Time time,
-        const string fixed_frame="riegl_meas_origin",
-        const string robot_frame="odom_combined"
+        const std::string fixed_frame="riegl_meas_origin",
+        const std::string robot_frame="odom_combined"
 )
 {
+    using namespace std;
     tf::StampedTransform transform;
 
     string error_msg;
@@ -140,12 +141,15 @@ namespace lvr_ros
         SendCloudActionServer;
     typedef actionlib::SimpleActionServer<lvr_ros::StartReconstructionAction>
         StartReconstructionActionServer;
+    typedef actionlib::SimpleActionServer<lvr_ros::StopReconstructionAction>
+        StopReconstructionActionServer;
 
     static const bfs::path remote_box_directory = "/tmp/clouds_remote";
     static const bfs::path local_box_directory  = "/tmp/clouds_local";
     static const bfs::path trigger_fname        = ".start_reconstruction";
     static const bfs::path pose_fname           = "pose.pose";
     static const bfs::path config_fname         = "remote_reconstruction_config.yaml";
+    static const bfs::path stop_fname           = ".stop_reconstruction";
     static const bfs::path ready_fname          = ".done";
 
 
@@ -160,9 +164,14 @@ namespace lvr_ros
                                "reconstruct",
                                 boost::bind(&RemoteReconstruction::startReconstruction, this, _1),
                                 false),
+                stop_as(node_handle,
+                        "stop",
+                        boost::bind(&RemoteReconstruction::stopReconstruction, this, _1),
+                        false),
                 transform_listener(ros::Duration(60.0)),
                 observer(local_box_directory),
-                remote_host(remote_host)
+                remote_host(remote_host),
+                was_stopped(false)
         {
 
             mesh_publisher = node_handle.advertise<mesh_msgs::TriangleMeshStamped>("/mesh", 1);
@@ -174,6 +183,7 @@ namespace lvr_ros
 
             send_as.start();
             reconstruct_as.start();
+            stop_as.start();
 
             if (not bfs::exists(remote_box_directory))
             {
@@ -191,6 +201,7 @@ namespace lvr_ros
 
         private:
             condition_variable cv;
+            bool was_stopped;
             mutex cv_m;
             FileObserver observer;
             string remote_host;
@@ -313,6 +324,20 @@ namespace lvr_ros
                 }
             }
 
+            bool writeStopFile()
+            {
+                const bfs::path fname = local_box_directory / stop_fname;
+                ofstream ofs(fname.string(), ios_base::out);
+                if (not ofs)
+                {
+                    return false;
+                } else
+                {
+                    ofs << "Stop dat shit.\n";
+                    ofs.close();
+                    return true;
+                }
+            }
 
 
             void reconfigureCallback(lvr_ros::ReconstructionConfig& config, uint32_t level)
@@ -386,12 +411,46 @@ namespace lvr_ros
 
             }
 
+            void stopReconstruction(
+                    const lvr_ros::StopReconstructionGoalConstPtr& goal
+            )
+            {
+                ROS_INFO_STREAM("Received stop request.");
+                n_clouds = 0;
+                if (not writeStopFile())
+                {
+                    ROS_ERROR_STREAM("Could not create stop file");
+                    stop_as.setAborted();
+                } else
+                {
+                    stringstream command;
+                    /********************
+                     *  Copy stop file  *
+                     ********************/
+                    command << "scp " << local_box_directory / stop_fname;
+                    command << " " << remote_host << ":" << remote_box_directory;
+
+                    ROS_INFO_STREAM("Executing " << CMD_COLOR(command.str()) << " ...");
+                    int res = system(command.str().c_str());
+                    if (res != 0)
+                    {
+                        ROS_ERROR_STREAM("stop file was not sent successfully. (" << res << ")");
+                        stop_as.setAborted();
+                    } else
+                    {
+                        was_stopped = true;
+                        stop_as.setSucceeded();
+                        cv.notify_all();
+                    }
+                }
+            }
 
             void startReconstruction(
                     const lvr_ros::StartReconstructionGoalConstPtr& goal
             )
             {
                 n_clouds = 0;
+                was_stopped = false;
                 if (not writeTriggerFile())
                 {
                     ROS_ERROR_STREAM("Could not create trigger file");
@@ -431,10 +490,18 @@ namespace lvr_ros
                         {
                             ROS_INFO_STREAM("Waiting for Mesh...");
                             unique_lock<mutex> lock(cv_m);
+                            // TODO: Wait with timeout, then abort.
                             cv.wait(lock);
-                            // TODO: Check if mesh is good
-                            reconstruct_as.setSucceeded();
-                            ROS_INFO_STREAM("Reconstruction finished.");
+                            if (not was_stopped)
+                            {
+                                // notify called by sendStop()
+                                reconstruct_as.setSucceeded();
+                                ROS_INFO_STREAM("Reconstruction finished.");
+                            } else
+                            {
+                                reconstruct_as.setAborted();
+                                ROS_INFO_STREAM("Reconstruction aborted.");
+                            }
                         }
                     }
                 }
@@ -473,6 +540,7 @@ namespace lvr_ros
             ReconstructionConfig config;
             SendCloudActionServer send_as;
             StartReconstructionActionServer reconstruct_as;
+            StopReconstructionActionServer stop_as;
             tf::TransformListener transform_listener;
             int n_clouds;
     };
