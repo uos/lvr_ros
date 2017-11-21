@@ -260,7 +260,7 @@ namespace lvr_ros
         /*******************
         *  Copy ply file  *
         *******************/
-        assert (n_clouds % 10) < 20
+        assert((n_clouds % 10) < 20);
         char file_base[20];
         sprintf(file_base, "scan%03d", n_clouds++);
         stringstream command;
