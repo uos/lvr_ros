@@ -1,4 +1,3 @@
 ---
-mesh_msgs/TriangleMeshStamped mesh
+mesh_msgs/MeshGeometry mesh
 ---
-int32 progress
