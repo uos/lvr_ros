@@ -17,8 +17,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <ros/ros.h>
 #include <dynamic_reconfigure/server.h>
-#include <mesh_msgs/TriangleMesh.h>
-#include <mesh_msgs/TriangleMeshStamped.h>
+#include <mesh_msgs/MeshGeometry.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Quaternion.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -59,6 +58,7 @@ namespace lvr_ros
     static const bfs::path config_fname         = "remote_reconstruction_config.yaml";
     static const bfs::path stop_fname           = ".stop_reconstruction";
     static const bfs::path ready_fname          = ".done";
+    static const bfs::path mesh_fname           = "triangle_mesh.ply";
 
 
     class RemoteReconstruction
@@ -195,6 +195,11 @@ namespace lvr_ros
              */
             void fileDeleted(const FSEvent& event);
 
+            /**
+             * @brief Publish a message from thre received lvr output
+             * @param filename Filename of the triangle mesh PLY
+             */
+            mesh_msgs::MeshGeometryPtr meshFromFile(const std::string filename);
     };
 }
 

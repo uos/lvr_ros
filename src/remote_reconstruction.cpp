@@ -17,8 +17,6 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <ros/ros.h>
 #include <dynamic_reconfigure/server.h>
-#include <mesh_msgs/TriangleMesh.h>
-#include <mesh_msgs/TriangleMeshStamped.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Quaternion.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -37,6 +35,8 @@
 #include "lvr_ros/slam6d_ros_utils.hpp"
 
 #include "lvr_ros/remote_reconstruction.hpp"
+#include "lvr_ros/conversions.h"
+#include <lvr2/io/MeshBuffer.hpp>
 
 // ansi escape for white on black
 #define CMD_COLOR(stuff) ("\033[37;40m") << (stuff) << ("\033[0m")
@@ -64,7 +64,7 @@ namespace lvr_ros
         was_stopped(false)
     {
 
-        mesh_publisher = node_handle.advertise<mesh_msgs::TriangleMeshStamped>("/mesh", 1);
+        mesh_publisher = node_handle.advertise<mesh_msgs::MeshGeometry>("/mesh", 1);
 
         // setup dynamic reconfigure
         reconfigure_server_ptr = DynReconfigureServerPtr(new DynReconfigureServer(node_handle));
@@ -88,6 +88,16 @@ namespace lvr_ros
                     this, placeholders::_1));
         this->observer.on_created(bind(&RemoteReconstruction::fileCreated,
                     this, placeholders::_1));
+    }
+
+    mesh_msgs::MeshGeometryPtr RemoteReconstruction::meshFromFile(const string filename)
+    {
+        lvr::MeshBufferPtr mesh_ptr(new lvr::MeshBuffer);
+        lvr_ros::readMeshBuffer(mesh_ptr, filename);
+        lvr2::MeshBufferPtr<Vec> mesh_ptr2(new lvr2::MeshBuffer<Vec>(*mesh_ptr));
+        mesh_msgs::MeshGeometryPtr geo_msg(new mesh_msgs::MeshGeometry);
+        lvr_ros::fromMeshBufferToMeshGeometryMessage(mesh_ptr2, *geo_msg);
+        return geo_msg;
     }
 
     bool RemoteReconstruction::writeCurrentConfig()
@@ -387,17 +397,22 @@ namespace lvr_ros
                     cv.wait(lock);
                     if (not was_stopped)
                     {
-                        // notify called by sendStop()
-                        reconstruct_as.setSucceeded();
                         ROS_INFO_STREAM("Reconstruction finished.");
+                        mesh_msgs::MeshGeometryPtr mesh_ptr =
+                            meshFromFile((local_box_directory /
+                                        mesh_fname).string());
+                        StartReconstructionResult res;
+                        res.mesh = *mesh_ptr;
+                        reconstruct_as.setSucceeded(res);
+                        mesh_publisher.publish(*mesh_ptr)
                     } else
-                    {
+
+                        // notify called by sendStop()
                         reconstruct_as.setAborted();
                         ROS_INFO_STREAM("Reconstruction aborted.");
                     }
                 }
             }
-        }
     }
 
     void RemoteReconstruction::onAnyEvent(const FSEvent& event)
