@@ -94,9 +94,9 @@ namespace lvr_ros
     {
         lvr::MeshBufferPtr mesh_ptr(new lvr::MeshBuffer);
         lvr_ros::readMeshBuffer(mesh_ptr, filename);
-        lvr2::MeshBufferPtr<Vec> mesh_ptr2(new lvr2::MeshBuffer<Vec>(*mesh_ptr));
+        /* lvr2::MeshBufferPtr<Vec> mesh_ptr2(new lvr2::MeshBuffer<Vec>(*mesh_ptr)); */
         mesh_msgs::MeshGeometryPtr geo_msg(new mesh_msgs::MeshGeometry);
-        lvr_ros::fromMeshBufferToMeshGeometryMessage(mesh_ptr2, *geo_msg);
+        /* lvr_ros::fromMeshBufferToMeshGeometryMessage(mesh_ptr2, *geo_msg); */
         return geo_msg;
     }
 
@@ -404,7 +404,8 @@ namespace lvr_ros
                         StartReconstructionResult res;
                         res.mesh = *mesh_ptr;
                         reconstruct_as.setSucceeded(res);
-                        mesh_publisher.publish(*mesh_ptr)
+                        mesh_publisher.publish(*mesh_ptr);
+                        // TODO: Remove all files
                     } else
 
                         // notify called by sendStop()
