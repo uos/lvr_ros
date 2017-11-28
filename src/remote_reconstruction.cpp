@@ -36,6 +36,7 @@
 
 #include "lvr_ros/remote_reconstruction.hpp"
 #include "lvr_ros/conversions.h"
+#include <lvr/io/MeshBuffer.hpp>
 #include <lvr2/io/MeshBuffer.hpp>
 
 // ansi escape for white on black
@@ -94,9 +95,9 @@ namespace lvr_ros
     {
         lvr::MeshBufferPtr mesh_ptr(new lvr::MeshBuffer);
         lvr_ros::readMeshBuffer(mesh_ptr, filename);
-        /* lvr2::MeshBufferPtr<Vec> mesh_ptr2(new lvr2::MeshBuffer<Vec>(*mesh_ptr)); */
+        lvr2::MeshBufferPtr<Vec> mesh_ptr_v2(new lvr2::MeshBuffer<Vec>(*mesh_ptr));
         mesh_msgs::MeshGeometryPtr geo_msg(new mesh_msgs::MeshGeometry);
-        /* lvr_ros::fromMeshBufferToMeshGeometryMessage(mesh_ptr2, *geo_msg); */
+        lvr_ros::fromMeshBufferToMeshGeometryMessage(mesh_ptr_v2, *geo_msg);
         return geo_msg;
     }
 
