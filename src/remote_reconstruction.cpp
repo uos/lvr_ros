@@ -445,7 +445,6 @@ namespace lvr_ros
     {
         if (event.file == (local_box_directory / ready_fname))
         {
-            cout << "Waking up..." << endl;
             cv.notify_all();
         }
     }
@@ -469,7 +468,12 @@ namespace lvr_ros
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "remote_reconstruction");
-    lvr_ros::RemoteReconstruction reconstruction;
+    std::string hostname("localhost");
+    if (nh.hasParam("remote_host"))
+    {
+        nh.getParam("remote_host", hostname);
+    }
+    lvr_ros::RemoteReconstruction reconstruction(hostname);
     ROS_INFO_STREAM("Started action servers.");
     ros::spin();
 
