@@ -127,6 +127,7 @@ namespace lvr_ros
                     << ": " << (quote ? "'" : "")\
                     << config.name << (quote ? "'" : "")
             ofs << boolalpha
+                << PARAM(voxelsize,            false) << endl
                 << PARAM(noExtrusion,          false) << endl
                 << PARAM(intersections,        false) << endl
                 << PARAM(pcm,                  true)  << endl
@@ -405,13 +406,19 @@ namespace lvr_ros
                         StartReconstructionResult res;
                         res.mesh = *mesh_ptr;
                         reconstruct_as.setSucceeded(res);
+                        ROS_INFO_STREAM("Published MeshGeometry");
                         mesh_publisher.publish(*mesh_ptr);
-                        // TODO: Remove all files
-                    } else
 
+                        // TODO: Remove all files
+                        stringstream cmd;
+                        cmd << "rm -f " << local_box_directory.string();
+                        system(cmd.str().c_str());
+                    } else
+                    {
                         // notify called by sendStop()
                         reconstruct_as.setAborted();
                         ROS_INFO_STREAM("Reconstruction aborted.");
+                    }
                     }
                 }
             }
