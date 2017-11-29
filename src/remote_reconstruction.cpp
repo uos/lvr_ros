@@ -411,7 +411,7 @@ namespace lvr_ros
 
                         // TODO: Remove all files
                         stringstream cmd;
-                        cmd << "rm -f " << local_box_directory.string();
+                        cmd << "rm -f " << local_box_directory.string() << "/*";
                         system(cmd.str().c_str());
                     } else
                     {
