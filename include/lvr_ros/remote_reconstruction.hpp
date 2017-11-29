@@ -44,6 +44,11 @@ namespace lvr_ros
         DynReconfigureServer;
     typedef boost::shared_ptr<DynReconfigureServer>
         DynReconfigureServerPtr;
+
+    /////////////////////////////////////////////////////////////////////////////
+    // We have 3 action servers. One for sending clouds to the server, one     //
+    // for starting the reconstruction and one for interrupting it.            //
+    /////////////////////////////////////////////////////////////////////////////
     typedef actionlib::SimpleActionServer<lvr_ros::SendCloudAction>
         SendCloudActionServer;
     typedef actionlib::SimpleActionServer<lvr_ros::StartReconstructionAction>
@@ -61,6 +66,17 @@ namespace lvr_ros
     static const bfs::path mesh_fname           = "triangle_mesh.ply";
 
 
+    /**
+     * @class RemoteReconstruction
+     * This class is a version of @c Reconstruction that delegates the mesh
+     * creation to a different host. On this host, the LVR server Python program
+     * must run to listen for incoming commands. The result is sent back and
+     * published in ROS.
+     *
+     * Communication works by watching /tmp/clouds_local on the client and
+     * /tmp/clouds_remote on the server for incoming files, some names have
+     * special meanings.
+     */
     class RemoteReconstruction
     {
         public:
