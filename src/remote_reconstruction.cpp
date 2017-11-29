@@ -65,7 +65,7 @@ namespace lvr_ros
         was_stopped(false)
     {
 
-        mesh_publisher = node_handle.advertise<mesh_msgs::MeshGeometry>("/mesh", 1);
+        mesh_publisher = node_handle.advertise<mesh_msgs::MeshGeometryStamped>("/mesh", 1);
 
         // setup dynamic reconfigure
         reconfigure_server_ptr = DynReconfigureServerPtr(new DynReconfigureServer(node_handle));
@@ -403,13 +403,30 @@ namespace lvr_ros
                         mesh_msgs::MeshGeometryPtr mesh_ptr =
                             meshFromFile((local_box_directory /
                                         mesh_fname).string());
-                        StartReconstructionResult res;
-                        res.mesh = *mesh_ptr;
-                        reconstruct_as.setSucceeded(res);
-                        ROS_INFO_STREAM("Published MeshGeometry");
-                        mesh_publisher.publish(*mesh_ptr);
 
-                        // TODO: Remove all files
+                        ////////////////////////
+                        //  Fill the message  //
+                        ////////////////////////
+                        mesh_msgs::MeshGeometryStamped mesh_stamped;
+                        mesh_stamped.mesh_geometry = *mesh_ptr;
+                        mesh_stamped.header.frame_id = "odom_combined";
+                        static uint32_t seq = 0;
+                        mesh_stamped.header.seq = seq++;
+                        mesh_stamped.header.stamp = ros::Time::now();
+
+                        ////////////////////////////
+                        //  finish action server  //
+                        ////////////////////////////
+                        StartReconstructionResult res;
+                        res.mesh = mesh_stamped;
+                        reconstruct_as.setSucceeded(res);
+
+                        mesh_publisher.publish(mesh_stamped);
+                        ROS_INFO_STREAM("Published MeshGeometry");
+
+                        // TODO: Use proper api for this. But since all this
+                        // works on linux only anyway (we use inotify), this is
+                        // not a priority.
                         stringstream cmd;
                         cmd << "rm -f " << local_box_directory.string() << "/*";
                         system(cmd.str().c_str());
