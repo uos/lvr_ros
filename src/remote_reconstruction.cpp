@@ -469,6 +469,7 @@ int main(int argc, char** argv)
 {
     ros::init(argc, argv, "remote_reconstruction");
     std::string hostname("localhost");
+    ros::NodeHandle nh("~");
     if (nh.hasParam("remote_host"))
     {
         nh.getParam("remote_host", hostname);
