@@ -23,6 +23,4 @@
     <remap from="mesh" to="assembled_mesh"/>
     <param name="numClouds" type="int" value="$(arg numClouds)" />
   </node>
-  <node pkg="rosbag" type="play" name="play_bag" output="screen" args="--clock -r20
-      '/home/student/r/rdiederichse/Desktop/Friggin useless crap/server_test.bag'"/>
 </launch>
