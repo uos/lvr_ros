@@ -173,13 +173,18 @@ bool fromMeshBufferToMeshMessages(
 
     // Copy vertex tex coords
     auto buffer_texcoords = buffer->getVertexTextureCoordinates();
-    mesh_materials.vertex_tex_coords.resize(n_vertices);
-    for (unsigned int i = 0; i < n_vertices; i++)
+    if (buffer_texcoords.size() > 0)
     {
-        mesh_materials.vertex_tex_coords[i].u = buffer_texcoords[i * 3];
-        mesh_materials.vertex_tex_coords[i].v = buffer_texcoords[i * 3 + 1];
+        mesh_materials.vertex_tex_coords.resize(n_vertices);
+
+        for (unsigned int i = 0; i < n_vertices; i++)
+        {
+            mesh_materials.vertex_tex_coords[i].u = buffer_texcoords[i * 3];
+            mesh_materials.vertex_tex_coords[i].v = buffer_texcoords[i * 3 + 1];
+        }
+
+        buffer_texcoords.clear();
     }
-    buffer_texcoords.clear();
 
     // Copy vertex colors
     if (n_vertex_colors > 0)
