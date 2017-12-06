@@ -57,7 +57,7 @@ class FileObserver
         void observe();
 
     public:
-		virtual ~FileObserver()
+        virtual ~FileObserver()
         {
             // TODO: Stop runner thread?
         }
