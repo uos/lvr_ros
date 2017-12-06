@@ -33,6 +33,7 @@ add_action_files(
   Reconstruct.action
   SendCloud.action
   StartReconstruction.action
+  StopReconstruction.action
 )
 
 find_path(OPENGL_INC gl.h /usr/include/GL)
@@ -111,6 +112,7 @@ add_executable(${PROJECT_NAME}_remote_reconstruction
   src/colors.cpp
   src/conversions.cpp
   src/remote_reconstruction.cpp
+  src/FileObserver.cpp
 )
 target_link_libraries(${PROJECT_NAME}_remote_reconstruction
     ${catkin_LIBRARIES}

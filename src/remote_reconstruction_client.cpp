@@ -2,16 +2,19 @@
 #include <actionlib/client/simple_action_client.h>
 #include <tf/transform_listener.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <thread>
 
 #include "move_base_flex/navigation_utility.h"
 
 #include "lvr_ros/SendCloudAction.h"
 #include "lvr_ros/StartReconstructionAction.h"
+#include "lvr_ros/StopReconstructionAction.h"
 
 using namespace lvr_ros;
 
 typedef actionlib::SimpleActionClient<SendCloudAction> SendClient;
 typedef actionlib::SimpleActionClient<StartReconstructionAction> ReconstructClient;
+typedef actionlib::SimpleActionClient<StopReconstructionAction> StopReconstructClient;
 
 class CloudClient
 {
@@ -20,8 +23,28 @@ class CloudClient
         /// action clients
         SendClient client_send;
         ReconstructClient client_reconstruct;
+        StopReconstructClient client_stop;
         int n_clouds;
         int max_clouds;
+
+        void sendStop()
+        {
+            // I have tested this by running a thread which will call this
+            // method 5 secs after trigger and it worked. It has to be done
+            // asynchronously though, since sendTrigger() block by waiting for
+            // the action server result,
+            StopReconstructionGoal goal;
+            client_stop.sendGoal(goal);
+            bool result = client_stop.waitForResult();
+            if (not result)
+            {
+                ROS_ERROR_STREAM("Stop not sent.");
+            } else
+            {
+                ROS_INFO_STREAM("Stop sent successfully.");
+            }
+            n_clouds = 0;
+        }
 
         void sendTrigger()
         {
@@ -67,8 +90,11 @@ class CloudClient
         }
 
     public:
-        CloudClient(ros::NodeHandle& nh) : client_send("/send"),
-        client_reconstruct("/reconstruct"), n_clouds(0)
+        CloudClient(ros::NodeHandle& nh) :
+            client_send("/send"),
+            client_reconstruct("/reconstruct"),
+            client_stop("/stop"),
+            n_clouds(0)
     {
         cloud_sub = nh.subscribe<sensor_msgs::PointCloud2>("/riegl_cloud", 5,
                 &CloudClient::pointCloudCallback, this);
@@ -83,6 +109,7 @@ class CloudClient
             ROS_INFO_STREAM("Will stop after " << max_clouds << " clouds.");
             client_send.waitForServer();
             client_reconstruct.waitForServer();
+            client_stop.waitForServer();
         }
     }
 };
