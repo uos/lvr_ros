@@ -97,7 +97,6 @@ namespace lvr_ros
             SendCloudActionServer send_as;
             StartReconstructionActionServer reconstruct_as;
             StopReconstructionActionServer stop_as;
-            tf::TransformListener transform_listener;
             int n_clouds;
 
             /**
@@ -129,7 +128,7 @@ namespace lvr_ros
              * @param stamp Timestamp to use for querying tf
              * @return Success or failure
              */
-            bool writePose(ros::Time stamp);
+            bool writePose(const std::vector<double>& rP, const std::vector<double>& rPT);
 
             /**
              * @brief Write trigger file for scp'ing

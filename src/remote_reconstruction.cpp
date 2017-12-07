@@ -4,9 +4,6 @@
 #include "lvr_ros/StopReconstructionAction.h"
 #include "lvr_ros/FileObserver.hpp"
 
-#include <pcl_definitions/types/types.hpp>
-#include <pcl_definitions/utils.hpp>
-
 #include <condition_variable>
 #include <thread>
 #include <fstream>
@@ -18,19 +15,13 @@
 #include <ros/ros.h>
 #include <dynamic_reconfigure/server.h>
 #include <geometry_msgs/Point.h>
-#include <geometry_msgs/Quaternion.h>
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2/LinearMath/Matrix3x3.h>
 
 #include <pcl/io/ply_io.h>
-#include <pcl/common/transforms.h>
-#include <pcl_conversions/pcl_conversions.h>
 #include <boost/filesystem/path.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp>
 
 #include <Eigen/Geometry>
-#include <pcl_ros/transforms.h>
 
 #include "lvr_ros/slam6d_ros_utils.hpp"
 
@@ -59,7 +50,6 @@ namespace lvr_ros
                 "stop",
                 boost::bind(&RemoteReconstruction::stopReconstruction, this, _1),
                 false),
-        transform_listener(ros::Duration(60.0)),
         observer(local_box_directory),
         remote_host(remote_host),
         was_stopped(false)
@@ -185,20 +175,16 @@ namespace lvr_ros
         return res == 0;
     }
 
-    bool RemoteReconstruction::writePose(ros::Time stamp)
+    bool RemoteReconstruction::writePose(const vector<double>& rP, const vector<double>& rPT)
     {
-        // I'm not sure what format 3dtk uses, but this code, taken from MUFFIN,
-        // performs the appropriate lookup and conversion
-        double t[16], ti[16], rP[3], rPT[3];
-        bool success = getTransform(t, ti, rP, rPT, this->transform_listener, stamp);
         ofstream ofs((local_box_directory / pose_fname).string());
         if (not ofs)
         {
             return false;
         } else
         {
-            ofs << rP[0] << " " << rP[1] << " " << rP[2] << endl <<
-                deg(rPT[0]) << " " << deg(rPT[1]) << " " << deg(rPT[2]);
+            string pose(transform2pose(rP, rPT));
+            ofs << pose;
             ofs.close();
             return true;
         }
@@ -244,6 +230,8 @@ namespace lvr_ros
     void RemoteReconstruction::sendCloud(const lvr_ros::SendCloudGoalConstPtr& goal)
     {
         const sensor_msgs::PointCloud2& cloud = goal->cloud;
+        const vector<double> rP = goal->rP;
+        const vector<double> rPT = goal->rPT;
         bfs::path tmp_fname = local_box_directory /
             bfs::path(to_string(cloud.header.seq) + string(".ply"));
         ROS_INFO_STREAM("Saving PLY to " << tmp_fname << "...");
@@ -262,7 +250,7 @@ namespace lvr_ros
             return;
         }
         ROS_INFO_STREAM("Saving pose to temporary file...");
-        if (not writePose(cloud.header.stamp))
+        if (not writePose(rP, rPT))
         {
             ROS_ERROR_STREAM("Could not write current pose.");
             send_as.setAborted();
