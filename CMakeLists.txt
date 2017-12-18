@@ -14,7 +14,7 @@ set(PACKAGE_DEPENDENCIES
   sensor_msgs
   geometry_msgs
   hyperspectral_calibration
-  move_base_flex
+  mbf_abstract_nav
   tf
   pcl_ros
   pcl_definitions

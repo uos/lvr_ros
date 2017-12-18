@@ -4,7 +4,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <thread>
 
-#include "move_base_flex/navigation_utility.h"
+#include "mbf_abstract_nav/navigation_utility.h"
 
 #include "lvr_ros/SendCloudAction.h"
 #include "lvr_ros/StartReconstructionAction.h"
