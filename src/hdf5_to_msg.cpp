@@ -30,7 +30,7 @@ namespace lvr_ros {
 hdf5_to_msg::hdf5_to_msg()
 {
     ros::NodeHandle nh("~");
-    
+
     if (!node_handle.getParam("inputFile", inputFile))
     {
         inputFile = "/tmp/pluto/map.h5";
@@ -45,7 +45,7 @@ hdf5_to_msg::hdf5_to_msg()
     srv_get_uuid_ = node_handle.advertiseService(
         "get_uuid", &hdf5_to_msg::service_getUUID, this);
     srv_get_vertex_colors_ = node_handle.advertiseService(
-        "get_vertex_colors", &hdf5_to_msg::service_getVertexColors, this);    
+        "get_vertex_colors", &hdf5_to_msg::service_getVertexColors, this);
 
     srv_get_labeled_clusters_ = node_handle.advertiseService(
         "get_labeled_clusters", &hdf5_to_msg::service_getLabeledClusters, this);
@@ -62,7 +62,7 @@ hdf5_to_msg::hdf5_to_msg()
 }
 
 bool hdf5_to_msg::service_getUUID(
-    mesh_msgs::GetUUID::Request& req, 
+    mesh_msgs::GetUUID::Request& req,
     mesh_msgs::GetUUID::Response& res)
 {
     ROS_INFO("Get UUID");
@@ -71,13 +71,13 @@ bool hdf5_to_msg::service_getUUID(
 }
 
 bool hdf5_to_msg::service_getGeometry(
-    mesh_msgs::GetGeometry::Request& req, 
+    mesh_msgs::GetGeometry::Request& req,
     mesh_msgs::GetGeometry::Response& res)
 {
     ROS_INFO("Get geometry");
     lvr2::PlutoMapIO pmio(inputFile);
 
-   
+
     // Vertices
     auto vertices = pmio.getVertices();
     unsigned int nVertices = vertices.size() / 3;
@@ -125,7 +125,7 @@ bool hdf5_to_msg::service_getGeometry(
 }
 
 bool hdf5_to_msg::service_getVertexColors(
-    mesh_msgs::GetVertexColors::Request& req, 
+    mesh_msgs::GetVertexColors::Request& req,
     mesh_msgs::GetVertexColors::Response& res)
 {
     ROS_INFO("Get vertex colors");
@@ -159,7 +159,7 @@ bool hdf5_to_msg::service_getVertexColors(
 }
 
 bool hdf5_to_msg::service_getMaterials(
-    mesh_msgs::GetMaterials::Request& req, 
+    mesh_msgs::GetMaterials::Request& req,
     mesh_msgs::GetMaterials::Response& res)
 {
     ROS_INFO("Get materials");
@@ -210,9 +210,9 @@ bool hdf5_to_msg::service_getMaterials(
 
     /* TODO/FIXME
 
-        Hier ist was komisch: 
+        Hier ist was komisch:
         Warum ist das texCoords array genauso lang wie es Vertices gibt?
-        Das müsste doppelt so lang sein! 
+        Das müsste doppelt so lang sein!
         Für jeden Vertex muss es u/v geben
 
     */
@@ -238,7 +238,7 @@ bool hdf5_to_msg::service_getMaterials(
 }
 
 bool hdf5_to_msg::service_getTexture(
-    mesh_msgs::GetTexture::Request& req, 
+    mesh_msgs::GetTexture::Request& req,
     mesh_msgs::GetTexture::Response& res)
 {
     ROS_INFO("Get texture");
@@ -339,13 +339,13 @@ void hdf5_to_msg::callback_clusterLabel(const mesh_msgs::ClusterLabel::ConstPtr&
     std::vector<std::string> split_results;
     boost::split(split_results, msg->cluster.label, [](char c){ return c == '_'; });
 
-    if (split_results.size() != 2) 
+    if (split_results.size() != 2)
     {
         ROS_ERROR("Received illegal cluster name");
         return;
     }
 
-    
+
     std::string label_group = split_results[0];
     std::string label_name = split_results[1];
     vector<uint32_t> indices;
