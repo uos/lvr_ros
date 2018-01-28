@@ -33,13 +33,21 @@
 // hdf5
 #include <lvr2/io/PlutoMapIO.hpp>
 
-// services
+// services & data types
+#include <mesh_msgs/ClusterLabel.h>
 #include <mesh_msgs/GetGeometry.h>
 #include <mesh_msgs/GetMaterials.h>
 #include <mesh_msgs/GetTexture.h>
 #include <mesh_msgs/GetUUID.h>
 #include <mesh_msgs/GetVertexColors.h>
 #include <mesh_msgs/GetVertexCosts.h>
+#include <mesh_msgs/GetLabeledClusters.h>
+#include <label_manager/GetLabelGroups.h>
+#include <label_manager/GetLabeledClusterGroup.h>
+#include <label_manager/DeleteLabel.h>
+
+// boost
+#include <boost/algorithm/string.hpp>
 
 namespace lvr_ros
 {
@@ -52,7 +60,7 @@ public:
 	~hdf5_to_msg() {};
 
 protected:
-	// Service callbacks
+	// Mesh services
     bool service_getGeometry(
     	mesh_msgs::GetGeometry::Request& req, 
     	mesh_msgs::GetGeometry::Response& res);
@@ -69,6 +77,23 @@ protected:
     	mesh_msgs::GetVertexColors::Request& req, 
     	mesh_msgs::GetVertexColors::Response& res);
 
+    // Label manager services
+    bool service_getLabeledClusters(
+        mesh_msgs::GetLabeledClusters::Request& req,
+        mesh_msgs::GetLabeledClusters::Response& res);
+    bool service_getLabelGroups(
+        label_manager::GetLabelGroups::Request& req,
+        label_manager::GetLabelGroups::Response& res);
+    bool service_getLabeledClusterGroup(
+        label_manager::GetLabeledClusterGroup::Request& req,
+        label_manager::GetLabeledClusterGroup::Response& res);
+    bool service_deleteLabel(
+        label_manager::DeleteLabel::Request& req,
+        label_manager::DeleteLabel::Response& res);
+
+    void callback_clusterLabel(const mesh_msgs::ClusterLabel::ConstPtr& msg);
+
+
 private:
 
     // Mesh message service servers
@@ -77,13 +102,23 @@ private:
     ros::ServiceServer srv_get_texture_;
     ros::ServiceServer srv_get_uuid_;
     ros::ServiceServer srv_get_vertex_colors_;
+    
+    // Label manager services and subs/pubs
+    ros::Subscriber sub_cluster_label_;
+    ros::Publisher pub_cluster_label_;
+    ros::ServiceServer srv_get_labeled_clusters_;
+    ros::ServiceServer srv_get_label_groups_;
+    ros::ServiceServer srv_get_labeled_cluster_group_;
+    ros::ServiceServer srv_delete_label_;
+
     // ROS
     ros::NodeHandle node_handle;
+    
     // ROS parameter
     std::string inputFile;
 
     std::string mesh_uuid = "mesh";
-
+    
 };
 
 

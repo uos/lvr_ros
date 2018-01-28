@@ -46,6 +46,19 @@ hdf5_to_msg::hdf5_to_msg()
         "get_uuid", &hdf5_to_msg::service_getUUID, this);
     srv_get_vertex_colors_ = node_handle.advertiseService(
         "get_vertex_colors", &hdf5_to_msg::service_getVertexColors, this);    
+
+    srv_get_labeled_clusters_ = node_handle.advertiseService(
+        "get_labeled_clusters", &hdf5_to_msg::service_getLabeledClusters, this);
+    srv_get_label_groups_ = node_handle.advertiseService(
+        "get_label_groups", &hdf5_to_msg::service_getLabelGroups, this);
+    srv_get_labeled_cluster_group_ = node_handle.advertiseService(
+        "get_labeled_cluster_group", &hdf5_to_msg::service_getLabeledClusterGroup, this);
+    srv_delete_label_ = node_handle.advertiseService(
+        "delete_label", &hdf5_to_msg::service_deleteLabel, this);
+
+    sub_cluster_label_ = node_handle.subscribe("cluster_label", 10, &hdf5_to_msg::callback_clusterLabel, this);
+    pub_cluster_label_ = node_handle.advertise<mesh_msgs::Cluster>("new_cluster_label", 1);
+
 }
 
 bool hdf5_to_msg::service_getUUID(
@@ -208,7 +221,7 @@ bool hdf5_to_msg::service_getMaterials(
     // Vertex Tex Coords
     auto vertexTexCoords = pmio.getVertexTextureCoords();
     unsigned int nVertices = vertexTexCoords.size() / 2;
-    ROS_ERROR("Possible error? See code");
+    ROS_ERROR("Tex coords not implemented");
     //res.mesh_materials_stamped.mesh_materials.vertex_tex_coords.resize(nVertices);
     //for (unsigned int i = 0; i < nVertices; i++)
     //{
@@ -236,6 +249,113 @@ bool hdf5_to_msg::service_getTexture(
     ROS_ERROR("Not implemented");
 
     return false;
+}
+
+bool hdf5_to_msg::service_getLabeledClusters(
+    mesh_msgs::GetLabeledClusters::Request& req,
+    mesh_msgs::GetLabeledClusters::Response& res)
+{
+    ROS_INFO("Get labeled clusters");
+    lvr2::PlutoMapIO pmio(inputFile);
+
+    // iterate over groups
+    auto groups = pmio.getLabelGroups();
+    for (size_t i = 0; i < groups.size(); i++)
+    {
+        // iterate over labels in group
+        auto labelsInGroup = pmio.getAllLabelsOfGroup(groups[i]);
+        for (size_t j = 0; j < labelsInGroup.size(); j++)
+        {
+            // copy label
+            auto faceIds = pmio.getFaceIdsOfLabel(groups[i], labelsInGroup[j]);
+            mesh_msgs::Cluster cluster;
+            std::stringstream ss;
+            ss << groups[i] << "_" << labelsInGroup[j];
+            cluster.label = ss.str();
+            cluster.face_indices.resize(faceIds.size());
+            for (size_t k = 0; k < faceIds.size(); k++)
+            {
+                cluster.face_indices[k] = faceIds[k];
+            }
+            res.clusters.push_back(cluster);
+        }
+    }
+
+    return true;
+}
+
+bool hdf5_to_msg::service_getLabelGroups(
+    label_manager::GetLabelGroups::Request& req,
+    label_manager::GetLabelGroups::Response& res)
+{
+    ROS_INFO("Get label groups");
+    //lvr2::PlutoMapIO pmio(inputFile);
+    // TODO
+    ROS_ERROR("Not implemented");
+
+    return false;
+}
+
+bool hdf5_to_msg::service_getLabeledClusterGroup(
+    label_manager::GetLabeledClusterGroup::Request& req,
+    label_manager::GetLabeledClusterGroup::Response& res)
+{
+    ROS_INFO("Get labeled cluster group");
+    //lvr2::PlutoMapIO pmio(inputFile);
+    // TODO
+    ROS_ERROR("Not implemented");
+
+    return false;
+}
+
+bool hdf5_to_msg::service_deleteLabel(
+    label_manager::DeleteLabel::Request& req,
+    label_manager::DeleteLabel::Response& res)
+{
+    ROS_INFO("Delete label");
+    //lvr2::PlutoMapIO pmio(inputFile);
+    // TODO
+    ROS_ERROR("Not implemented");
+
+    return false;
+}
+
+void hdf5_to_msg::callback_clusterLabel(const mesh_msgs::ClusterLabel::ConstPtr& msg)
+{
+    ROS_INFO_STREAM("New cluster label for mesh: " << msg->uuid);
+
+    if (msg->uuid.compare(mesh_uuid) != 0)
+    {
+        ROS_ERROR("Invalid mesh UUID");
+        return;
+    }
+
+    lvr2::PlutoMapIO pmio(inputFile);
+
+    // TODO: implement optional override
+    ROS_WARN("Override is enabled by default");
+
+    // split label id into group and name
+    std::vector<std::string> split_results;
+    boost::split(split_results, msg->cluster.label, [](char c){ return c == '_'; });
+
+    if (split_results.size() != 2) 
+    {
+        ROS_ERROR("Received illegal cluster name");
+        return;
+    }
+
+    
+    std::string label_group = split_results[0];
+    std::string label_name = split_results[1];
+    vector<uint32_t> indices;
+    for (size_t i = 0; i < msg->cluster.face_indices.size(); i++)
+    {
+        indices.push_back(msg->cluster.face_indices[i]);
+    }
+
+    // write to hdf5
+    pmio.addLabel(label_group, label_name, indices);
 }
 
 // ===================================================================================================================
