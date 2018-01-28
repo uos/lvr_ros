@@ -36,6 +36,8 @@ hdf5_to_msg::hdf5_to_msg()
         inputFile = "/tmp/pluto/map.h5";
     }
 
+    ROS_INFO_STREAM("Using input file: " << inputFile);
+
     srv_get_geometry_ = node_handle.advertiseService(
         "get_geometry", &hdf5_to_msg::service_getGeometry, this);
     srv_get_materials_ = node_handle.advertiseService(
@@ -197,37 +199,51 @@ bool hdf5_to_msg::service_getMaterials(
             .color.a = 1;
     }
 
-
-    // TODO/FIXME
     // Clusters
-    //res.mesh_materials_stamped.mesh_materials.clusters
-    ROS_ERROR("Clusters for materials not implemented");
+    // Map materials to face IDs
+    std::map<uint32_t, vector<uint32_t>> materialToFaces;
+    // Iterate over face <> material index
+    for (uint32_t i = 0; i < nFaces; i++)
+    {
+        // material index for face i
+        uint32_t materialIndex = materialFaceIndices[i];
 
-    // TODO/FIXME
-    // Cluster <> Materials
-    //res.mesh_materials_stamped.mesh_materials.cluster_materials
-    ROS_ERROR("Cluster <> Materials not implemented");
+        if (materialToFaces.count(materialIndex) == 0)
+        {
+            materialToFaces.insert(std::make_pair(materialIndex, vector<uint32_t>()));
+        }
 
-    /* TODO/FIXME
+        materialToFaces[materialIndex].push_back(i);
+    }
+    // For each material, map contains a list of faces
+    res.mesh_materials_stamped.mesh_materials.clusters.resize(nMaterials);
+    for (uint32_t i = 0; i < nMaterials; i++)
+    {
+        mesh_msgs::Cluster cluster;
+        for (uint32_t j = 0; j < materialToFaces[i].size(); i++)
+        {
+            cluster.face_indices.push_back(materialToFaces[i][j]);
+        }
+        res.mesh_materials_stamped.mesh_materials.clusters[i] = cluster;
+    }
+    res.mesh_materials_stamped.mesh_materials.cluster_materials.resize(nMaterials);
+    for (uint32_t i = 0; i < nMaterials; i++)
+    {
+        res.mesh_materials_stamped.mesh_materials.cluster_materials[i] = i;
+    }
 
-        Hier ist was komisch:
-        Warum ist das texCoords array genauso lang wie es Vertices gibt?
-        Das müsste doppelt so lang sein!
-        Für jeden Vertex muss es u/v geben
-
-    */
-
-    // TODO/FIXME
     // Vertex Tex Coords
     auto vertexTexCoords = pmio.getVertexTextureCoords();
-    unsigned int nVertices = vertexTexCoords.size() / 2;
+    unsigned int nVertices = vertexTexCoords.size() / 3;
     ROS_ERROR("Tex coords not implemented");
-    //res.mesh_materials_stamped.mesh_materials.vertex_tex_coords.resize(nVertices);
-    //for (unsigned int i = 0; i < nVertices; i++)
-    //{
-    //    res.mesh_materials_stamped.mesh_materials.vertex_tex_coords[i].u = vertexTexCoords[2 * i];
-    //    res.mesh_materials_stamped.mesh_materials.vertex_tex_coords[i].v = vertexTexCoords[2 * i + 1];
-    //}
+    res.mesh_materials_stamped.mesh_materials.vertex_tex_coords.resize(nVertices);
+    for (unsigned int i = 0; i < nVertices; i++)
+    {
+        // coords: u/v/w
+        // w is always 0
+        res.mesh_materials_stamped.mesh_materials.vertex_tex_coords[i].u = vertexTexCoords[3 * i];
+        res.mesh_materials_stamped.mesh_materials.vertex_tex_coords[i].v = vertexTexCoords[3 * i + 1];
+    }
 
     // Header
     res.mesh_materials_stamped.uuid = mesh_uuid;
