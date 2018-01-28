@@ -219,12 +219,10 @@ bool hdf5_to_msg::service_getMaterials(
     res.mesh_materials_stamped.mesh_materials.clusters.resize(nMaterials);
     for (uint32_t i = 0; i < nMaterials; i++)
     {
-        mesh_msgs::Cluster cluster;
         for (uint32_t j = 0; j < materialToFaces[i].size(); i++)
         {
-            cluster.face_indices.push_back(materialToFaces[i][j]);
+            res.mesh_materials_stamped.mesh_materials.clusters[i].face_indices.push_back(materialToFaces[i][j]);
         }
-        res.mesh_materials_stamped.mesh_materials.clusters[i] = cluster;
     }
     res.mesh_materials_stamped.mesh_materials.cluster_materials.resize(nMaterials);
     for (uint32_t i = 0; i < nMaterials; i++)
@@ -235,7 +233,6 @@ bool hdf5_to_msg::service_getMaterials(
     // Vertex Tex Coords
     auto vertexTexCoords = pmio.getVertexTextureCoords();
     unsigned int nVertices = vertexTexCoords.size() / 3;
-    ROS_ERROR("Tex coords not implemented");
     res.mesh_materials_stamped.mesh_materials.vertex_tex_coords.resize(nVertices);
     for (unsigned int i = 0; i < nVertices; i++)
     {
@@ -250,7 +247,9 @@ bool hdf5_to_msg::service_getMaterials(
     res.mesh_materials_stamped.header.frame_id = "map";
     res.mesh_materials_stamped.header.stamp = ros::Time::now();
 
-    return false;
+    ROS_INFO("Done");
+
+    return true;
 }
 
 bool hdf5_to_msg::service_getTexture(
@@ -260,11 +259,23 @@ bool hdf5_to_msg::service_getTexture(
     ROS_INFO("Get texture");
     lvr2::PlutoMapIO pmio(inputFile);
 
-    // TODO: erst Materials fixen, dann das hier bauen
+    auto texture = pmio.getTextures()[req.texture_index];
+    res.texture.texture_index = req.texture_index;
+    res.texture.uuid = mesh_uuid;
+    sensor_msgs::Image image;
+    sensor_msgs::fillImage( // TODO: only RGB, breaks when using other color channels
+        image,
+        "rgb8",
+        texture.height,
+        texture.width,
+        texture.width * 3, // step size
+        texture.data
+    );
+    res.texture.image = image;
 
-    ROS_ERROR("Not implemented");
+    ROS_INFO("Done");
 
-    return false;
+    return true;
 }
 
 bool hdf5_to_msg::service_getLabeledClusters(

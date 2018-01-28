@@ -45,6 +45,8 @@
 #include <label_manager/GetLabelGroups.h>
 #include <label_manager/GetLabeledClusterGroup.h>
 #include <label_manager/DeleteLabel.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/fill_image.h>
 
 // boost
 #include <boost/algorithm/string.hpp>
@@ -62,19 +64,19 @@ public:
 protected:
 	// Mesh services
     bool service_getGeometry(
-    	mesh_msgs::GetGeometry::Request& req, 
+    	mesh_msgs::GetGeometry::Request& req,
     	mesh_msgs::GetGeometry::Response& res);
     bool service_getMaterials(
-    	mesh_msgs::GetMaterials::Request& req, 
+    	mesh_msgs::GetMaterials::Request& req,
     	mesh_msgs::GetMaterials::Response& res);
     bool service_getTexture(
-    	mesh_msgs::GetTexture::Request& req, 
+    	mesh_msgs::GetTexture::Request& req,
     	mesh_msgs::GetTexture::Response& res);
     bool service_getUUID(
-    	mesh_msgs::GetUUID::Request& req, 
+    	mesh_msgs::GetUUID::Request& req,
     	mesh_msgs::GetUUID::Response& res);
     bool service_getVertexColors(
-    	mesh_msgs::GetVertexColors::Request& req, 
+    	mesh_msgs::GetVertexColors::Request& req,
     	mesh_msgs::GetVertexColors::Response& res);
 
     // Label manager services
@@ -102,7 +104,7 @@ private:
     ros::ServiceServer srv_get_texture_;
     ros::ServiceServer srv_get_uuid_;
     ros::ServiceServer srv_get_vertex_colors_;
-    
+
     // Label manager services and subs/pubs
     ros::Subscriber sub_cluster_label_;
     ros::Publisher pub_cluster_label_;
@@ -113,12 +115,12 @@ private:
 
     // ROS
     ros::NodeHandle node_handle;
-    
+
     // ROS parameter
     std::string inputFile;
 
     std::string mesh_uuid = "mesh";
-    
+
 };
 
 
