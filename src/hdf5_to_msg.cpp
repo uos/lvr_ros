@@ -31,7 +31,7 @@ hdf5_to_msg::hdf5_to_msg()
 {
     ros::NodeHandle nh("~");
 
-    if (!node_handle.getParam("inputFile", inputFile))
+    if (!nh.getParam("inputFile", inputFile))
     {
         inputFile = "/tmp/pluto/map.h5";
     }
@@ -262,16 +262,14 @@ bool hdf5_to_msg::service_getTexture(
     auto texture = pmio.getTextures()[req.texture_index];
     res.texture.texture_index = req.texture_index;
     res.texture.uuid = mesh_uuid;
-    sensor_msgs::Image image;
     sensor_msgs::fillImage( // TODO: only RGB, breaks when using other color channels
-        image,
+        res.texture.image,
         "rgb8",
         texture.height,
         texture.width,
         texture.width * 3, // step size
         texture.data
     );
-    res.texture.image = image;
 
     ROS_INFO("Done");
 
