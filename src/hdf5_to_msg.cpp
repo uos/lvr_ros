@@ -141,11 +141,11 @@ bool hdf5_to_msg::service_getVertexColors(
     for (unsigned int i = 0; i < nVertices; i++)
     {
         res.mesh_vertex_colors_stamped.mesh_vertex_colors
-            .vertex_colors[i].r = vertexColors[i * 3];
+            .vertex_colors[i].r = vertexColors[i * 3] / 255.0f;
         res.mesh_vertex_colors_stamped.mesh_vertex_colors
-            .vertex_colors[i].g = vertexColors[i * 3 + 1];
+            .vertex_colors[i].g = vertexColors[i * 3 + 1] / 255.0f;
         res.mesh_vertex_colors_stamped.mesh_vertex_colors
-            .vertex_colors[i].b = vertexColors[i * 3 + 2];
+            .vertex_colors[i].b = vertexColors[i * 3 + 2] / 255.0f;
         res.mesh_vertex_colors_stamped.mesh_vertex_colors
             .vertex_colors[i].a = 1;
     }
