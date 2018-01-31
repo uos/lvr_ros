@@ -66,6 +66,16 @@ protected:
     bool service_getGeometry(
     	mesh_msgs::GetGeometry::Request& req,
     	mesh_msgs::GetGeometry::Response& res);
+    bool service_getGeometryVertices(
+    	mesh_msgs::GetGeometry::Request& req,
+    	mesh_msgs::GetGeometry::Response& res);
+    bool service_getGeometryFaces(
+    	mesh_msgs::GetGeometry::Request& req,
+    	mesh_msgs::GetGeometry::Response& res);
+    bool service_getGeometryVertexnormals(
+    	mesh_msgs::GetGeometry::Request& req,
+    	mesh_msgs::GetGeometry::Response& res);
+
     bool service_getMaterials(
     	mesh_msgs::GetMaterials::Request& req,
     	mesh_msgs::GetMaterials::Response& res);
@@ -100,6 +110,9 @@ private:
 
     // Mesh message service servers
     ros::ServiceServer srv_get_geometry_;
+    ros::ServiceServer srv_get_geometry_vertices_;
+    ros::ServiceServer srv_get_geometry_faces_;
+    ros::ServiceServer srv_get_geometry_vertex_normals_;
     ros::ServiceServer srv_get_materials_;
     ros::ServiceServer srv_get_texture_;
     ros::ServiceServer srv_get_uuid_;
