@@ -3,8 +3,7 @@
 #include <tf/transform_listener.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <thread>
-
-#include "mbf_abstract_nav/navigation_utility.h"
+#include <mbf_utility/navigation_utility.h>
 
 #include "lvr_ros/SendCloudAction.h"
 #include "lvr_ros/StartReconstructionAction.h"
