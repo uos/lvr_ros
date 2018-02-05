@@ -40,6 +40,12 @@ hdf5_to_msg::hdf5_to_msg()
 
     srv_get_geometry_ = node_handle.advertiseService(
         "get_geometry", &hdf5_to_msg::service_getGeometry, this);
+    srv_get_geometry_vertices_ = node_handle.advertiseService(
+        "get_geometry_vertices", &hdf5_to_msg::service_getGeometryVertices, this);
+    srv_get_geometry_faces_ = node_handle.advertiseService(
+        "get_geometry_faces", &hdf5_to_msg::service_getGeometryFaces, this);
+     srv_get_geometry_vertex_normals_ = node_handle.advertiseService(
+        "get_geometry_vertexnormals", &hdf5_to_msg::service_getGeometryVertexnormals, this);
     srv_get_materials_ = node_handle.advertiseService(
         "get_materials", &hdf5_to_msg::service_getMaterials, this);
     srv_get_texture_ = node_handle.advertiseService(
@@ -125,6 +131,94 @@ bool hdf5_to_msg::service_getGeometry(
 
     return true;
 }
+
+bool hdf5_to_msg::service_getGeometryVertices(
+    mesh_msgs::GetGeometry::Request& req,
+    mesh_msgs::GetGeometry::Response& res)
+{
+    ROS_INFO("Get geometry vertices");
+    lvr2::PlutoMapIO pmio(inputFile);
+
+    // Vertices
+    auto vertices = pmio.getVertices();
+    unsigned int nVertices = vertices.size() / 3;
+    ROS_INFO_STREAM("Found " << nVertices << " vertices");
+    res.mesh_geometry_stamped.mesh_geometry.vertices.resize(nVertices);
+    for (unsigned int i = 0; i < nVertices; i++)
+    {
+        res.mesh_geometry_stamped.mesh_geometry.vertices[i].x = vertices[i * 3];
+        res.mesh_geometry_stamped.mesh_geometry.vertices[i].y = vertices[i * 3 + 1];
+        res.mesh_geometry_stamped.mesh_geometry.vertices[i].z = vertices[i * 3 + 2];
+    }
+
+    // Header
+    res.mesh_geometry_stamped.uuid = mesh_uuid;
+    res.mesh_geometry_stamped.header.frame_id = "map";
+    res.mesh_geometry_stamped.header.stamp = ros::Time::now();
+
+    ROS_INFO("Done");
+
+    return true;
+}
+
+bool hdf5_to_msg::service_getGeometryFaces(
+    mesh_msgs::GetGeometry::Request& req,
+    mesh_msgs::GetGeometry::Response& res)
+{
+    ROS_INFO("Get geometry faces");
+    lvr2::PlutoMapIO pmio(inputFile);
+
+    // Faces
+    auto faceIds = pmio.getFaceIds();
+    unsigned int nFaces = faceIds.size() / 3;
+    ROS_INFO_STREAM("Found " << nFaces << " faces");
+    res.mesh_geometry_stamped.mesh_geometry.faces.resize(nFaces);
+    for (unsigned int i = 0; i < nFaces; i++)
+    {
+        res.mesh_geometry_stamped.mesh_geometry.faces[i].vertex_indices[0] = faceIds[i * 3];
+        res.mesh_geometry_stamped.mesh_geometry.faces[i].vertex_indices[1] = faceIds[i * 3 + 1];
+        res.mesh_geometry_stamped.mesh_geometry.faces[i].vertex_indices[2] = faceIds[i * 3 + 2];
+    }
+
+    // Header
+    res.mesh_geometry_stamped.uuid = mesh_uuid;
+    res.mesh_geometry_stamped.header.frame_id = "map";
+    res.mesh_geometry_stamped.header.stamp = ros::Time::now();
+
+    ROS_INFO("Done");
+
+    return true;
+}
+
+bool hdf5_to_msg::service_getGeometryVertexnormals(
+    mesh_msgs::GetGeometry::Request& req,
+    mesh_msgs::GetGeometry::Response& res)
+{
+    ROS_INFO("Get geometry vertexnormals");
+    lvr2::PlutoMapIO pmio(inputFile);
+
+    // Vertex normals
+    auto vertexNormals = pmio.getVertexNormals();
+    unsigned int nVertexNormals = vertexNormals.size() / 3;
+    ROS_INFO_STREAM("Found " << nVertexNormals << " vertex normals");
+    res.mesh_geometry_stamped.mesh_geometry.vertex_normals.resize(nVertexNormals);
+    for (unsigned int i = 0; i < nVertexNormals; i++)
+    {
+        res.mesh_geometry_stamped.mesh_geometry.vertex_normals[i].x = vertexNormals[i * 3];
+        res.mesh_geometry_stamped.mesh_geometry.vertex_normals[i].y = vertexNormals[i * 3 + 1];
+        res.mesh_geometry_stamped.mesh_geometry.vertex_normals[i].z = vertexNormals[i * 3 + 2];
+    }
+
+    // Header
+    res.mesh_geometry_stamped.uuid = mesh_uuid;
+    res.mesh_geometry_stamped.header.frame_id = "map";
+    res.mesh_geometry_stamped.header.stamp = ros::Time::now();
+
+    ROS_INFO("Done");
+
+    return true;
+}
+
 
 bool hdf5_to_msg::service_getVertexColors(
     mesh_msgs::GetVertexColors::Request& req,
