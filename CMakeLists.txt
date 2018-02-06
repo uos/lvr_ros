@@ -10,11 +10,11 @@ set(PACKAGE_DEPENDENCIES
   mesh_msgs
   message_generation
   message_runtime
+  mbf_utility
   roscpp
   sensor_msgs
   geometry_msgs
   hyperspectral_calibration
-  mbf_abstract_nav
   label_manager
   tf
   pcl_ros
