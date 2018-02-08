@@ -269,7 +269,7 @@ bool hdf5_to_msg::service_getMaterials(
     unsigned int nFaces = materialFaceIndices.size();
     ROS_INFO_STREAM("Found " << nMaterials << " materials and " << nFaces << " faces");
     res.mesh_materials_stamped.mesh_materials.materials.resize(nMaterials);
-    for (unsigned int i = 0; i < nMaterials; i++)
+    for (uint32_t i = 0; i < nMaterials; i++)
     {
         int texture_index = materials[i].textureIndex;
 
@@ -284,11 +284,11 @@ bool hdf5_to_msg::service_getMaterials(
             .texture_index = static_cast<uint32_t>(texture_index);
         // color
         res.mesh_materials_stamped.mesh_materials.materials[i]
-            .color.r = materials[i].r;
+            .color.r = materials[i].r / 255.0f;
         res.mesh_materials_stamped.mesh_materials.materials[i]
-            .color.g = materials[i].b;
+            .color.g = materials[i].g / 255.0f;
         res.mesh_materials_stamped.mesh_materials.materials[i]
-            .color.r = materials[i].r;
+            .color.b = materials[i].b / 255.0f;
         res.mesh_materials_stamped.mesh_materials.materials[i]
             .color.a = 1;
     }
@@ -313,7 +313,7 @@ bool hdf5_to_msg::service_getMaterials(
     res.mesh_materials_stamped.mesh_materials.clusters.resize(nMaterials);
     for (uint32_t i = 0; i < nMaterials; i++)
     {
-        for (uint32_t j = 0; j < materialToFaces[i].size(); i++)
+        for (uint32_t j = 0; j < materialToFaces[i].size(); j++)
         {
             res.mesh_materials_stamped.mesh_materials.clusters[i].face_indices.push_back(materialToFaces[i][j]);
         }
@@ -328,7 +328,7 @@ bool hdf5_to_msg::service_getMaterials(
     auto vertexTexCoords = pmio.getVertexTextureCoords();
     unsigned int nVertices = vertexTexCoords.size() / 3;
     res.mesh_materials_stamped.mesh_materials.vertex_tex_coords.resize(nVertices);
-    for (unsigned int i = 0; i < nVertices; i++)
+    for (uint32_t i = 0; i < nVertices; i++)
     {
         // coords: u/v/w
         // w is always 0
@@ -356,14 +356,17 @@ bool hdf5_to_msg::service_getTexture(
     auto texture = pmio.getTextures()[req.texture_index];
     res.texture.texture_index = req.texture_index;
     res.texture.uuid = mesh_uuid;
+    sensor_msgs::Image image;
     sensor_msgs::fillImage( // TODO: only RGB, breaks when using other color channels
-        res.texture.image,
+        image,
         "rgb8",
         texture.height,
         texture.width,
         texture.width * 3, // step size
         texture.data
     );
+
+    res.texture.image = image;
 
     ROS_INFO("Done");
 
