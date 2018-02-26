@@ -64,6 +64,11 @@ hdf5_to_msg::hdf5_to_msg()
     srv_delete_label_ = node_handle.advertiseService(
         "delete_label", &hdf5_to_msg::service_deleteLabel, this);
 
+    srv_get_roughness_ = node_handle.advertiseService(
+        "get_roughness", &hdf5_to_msg::service_getRoughness, this);
+    srv_get_height_difference_ = node_handle.advertiseService(
+        "get_height_difference", &hdf5_to_msg::service_getHeightDifference, this);
+
     sub_cluster_label_ = node_handle.subscribe("cluster_label", 10, &hdf5_to_msg::callback_clusterLabel, this);
     pub_cluster_label_ = node_handle.advertise<mesh_msgs::Cluster>("new_cluster_label", 1);
 
@@ -411,7 +416,6 @@ bool hdf5_to_msg::service_getLabelGroups(
     label_manager::GetLabelGroups::Response& res)
 {
     ROS_INFO("Get label groups");
-    //lvr2::PlutoMapIO pmio(inputFile);
     // TODO
     ROS_ERROR("Not implemented");
 
@@ -423,7 +427,6 @@ bool hdf5_to_msg::service_getLabeledClusterGroup(
     label_manager::GetLabeledClusterGroup::Response& res)
 {
     ROS_INFO("Get labeled cluster group");
-    //lvr2::PlutoMapIO pmio(inputFile);
     // TODO
     ROS_ERROR("Not implemented");
 
@@ -435,11 +438,52 @@ bool hdf5_to_msg::service_deleteLabel(
     label_manager::DeleteLabel::Response& res)
 {
     ROS_INFO("Delete label");
-    //lvr2::PlutoMapIO pmio(inputFile);
     // TODO
     ROS_ERROR("Not implemented");
 
     return false;
+}
+
+bool hdf5_to_msg::service_getRoughness(
+    mesh_msgs::GetVertexCosts::Request& req,
+    mesh_msgs::GetVertexCosts::Response& res)
+{
+    ROS_INFO("Get roughness");
+
+    lvr2::PlutoMapIO pmio(inputFile);
+    auto roughness = pmio.getRoughness();
+
+    res.mesh_vertex_costs_stamped.mesh_vertex_costs.costs.resize(roughness.size());
+    for (uint32_t i = 0; i < roughness.size(); i++)
+    {
+        res.mesh_vertex_costs_stamped.mesh_vertex_costs.costs[i] = roughness[i];
+    }
+
+    res.mesh_vertex_costs_stamped.uuid = mesh_uuid;
+    res.mesh_vertex_costs_stamped.type = "roughness";
+
+    return true;
+}
+
+bool hdf5_to_msg::service_getHeightDifference(
+    mesh_msgs::GetVertexCosts::Request& req,
+    mesh_msgs::GetVertexCosts::Response& res)
+{
+    ROS_INFO("Get height difference");
+
+    lvr2::PlutoMapIO pmio(inputFile);
+    auto heightDiff = pmio.getRoughness();
+
+    res.mesh_vertex_costs_stamped.mesh_vertex_costs.costs.resize(heightDiff.size());
+    for (uint32_t i = 0; i < heightDiff.size(); i++)
+    {
+        res.mesh_vertex_costs_stamped.mesh_vertex_costs.costs[i] = heightDiff[i];
+    }
+
+    res.mesh_vertex_costs_stamped.uuid = mesh_uuid;
+    res.mesh_vertex_costs_stamped.type = "height_difference";
+
+    return true;
 }
 
 void hdf5_to_msg::callback_clusterLabel(const mesh_msgs::ClusterLabel::ConstPtr& msg)

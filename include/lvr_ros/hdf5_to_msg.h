@@ -103,6 +103,15 @@ protected:
         label_manager::DeleteLabel::Request& req,
         label_manager::DeleteLabel::Response& res);
 
+    // Vertex costs
+    bool service_getRoughness(
+        mesh_msgs::GetVertexCosts::Request& req,
+        mesh_msgs::GetVertexCosts::Response& res);
+    bool service_getHeightDifference(
+        mesh_msgs::GetVertexCosts::Request& req,
+        mesh_msgs::GetVertexCosts::Response& res);
+
+
     void callback_clusterLabel(const mesh_msgs::ClusterLabel::ConstPtr& msg);
 
 
@@ -117,6 +126,8 @@ private:
     ros::ServiceServer srv_get_texture_;
     ros::ServiceServer srv_get_uuid_;
     ros::ServiceServer srv_get_vertex_colors_;
+    ros::ServiceServer srv_get_roughness_;
+    ros::ServiceServer srv_get_height_difference_;
 
     // Label manager services and subs/pubs
     ros::Subscriber sub_cluster_label_;
