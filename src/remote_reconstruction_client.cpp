@@ -4,7 +4,6 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <thread>
 #include <cstring>
-#include <mbf_utility/navigation_utility.h>
 
 #include <tf/transform_listener.h>
 #include <lvr_ros/slam6d_ros_utils.hpp>
@@ -14,7 +13,6 @@
 #include <lvr_ros/StartReconstructionAction.h>
 #include <lvr_ros/StopReconstructionAction.h>
 
-#include <move_base_flex/navigation_utility.h>
 using namespace lvr_ros;
 
 typedef actionlib::SimpleActionClient<SendCloudAction> SendClient;
