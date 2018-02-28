@@ -4,7 +4,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <thread>
 #include <cstring>
-
+#include <mbf_utility/navigation_utility.h>
 
 #include <tf/transform_listener.h>
 #include <lvr_ros/slam6d_ros_utils.hpp>

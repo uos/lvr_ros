@@ -74,7 +74,7 @@ bool fromMeshBufferToMeshGeometryMessage(
     {
         if(buffer_vertexnormals.size() != n_vertices * 3)
         {
-            ROS_FATAL_STREAM("The number of normals in the MeshBuffer differs "
+            ROS_FATAL_STREAM("The number of normals in the MeshBuffer differs"
                                  "from the number of vertices! Ignoring normals!");
         }else{
             ROS_DEBUG_STREAM("Copy normals from MeshBuffer to MeshGeometry.");
@@ -173,13 +173,18 @@ bool fromMeshBufferToMeshMessages(
 
     // Copy vertex tex coords
     auto buffer_texcoords = buffer->getVertexTextureCoordinates();
-    mesh_materials.vertex_tex_coords.resize(n_vertices);
-    for (unsigned int i = 0; i < n_vertices; i++)
+    if (buffer_texcoords.size() > 0)
     {
-        mesh_materials.vertex_tex_coords[i].u = buffer_texcoords[i * 3];
-        mesh_materials.vertex_tex_coords[i].v = buffer_texcoords[i * 3 + 1];
+        mesh_materials.vertex_tex_coords.resize(n_vertices);
+
+        for (unsigned int i = 0; i < n_vertices; i++)
+        {
+            mesh_materials.vertex_tex_coords[i].u = buffer_texcoords[i * 3];
+            mesh_materials.vertex_tex_coords[i].v = buffer_texcoords[i * 3 + 1];
+        }
+
+        buffer_texcoords.clear();
     }
-    buffer_texcoords.clear();
 
     // Copy vertex colors
     if (n_vertex_colors > 0)
@@ -837,6 +842,47 @@ bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBu
     }
     buffer = PointBuffer(old_buffer);
     ROS_DEBUG_STREAM("conversion finished.");
+    return true;
+}
+
+bool fromMeshGeometryMessageToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    const lvr2::MeshBufferPtr<Vec>& buffer
+)
+{
+    // copy vertices
+    vector<float> vertices;
+    vertices.reserve(mesh_geometry.vertices.size() * 3);
+    for (auto vertex : mesh_geometry.vertices)
+    {
+        vertices.push_back(static_cast<float>(vertex.x));
+        vertices.push_back(static_cast<float>(vertex.y));
+        vertices.push_back(static_cast<float>(vertex.z));
+    }
+    buffer->setVertices(vertices);
+
+    // copy faces
+    vector<unsigned int> faces;
+    faces.reserve(mesh_geometry.faces.size() * 3);
+    for (auto face : mesh_geometry.faces)
+    {
+        faces.push_back(face.vertex_indices[0]);
+        faces.push_back(face.vertex_indices[1]);
+        faces.push_back(face.vertex_indices[2]);
+    }
+    buffer->setFaceIndices(faces);
+
+    // copy normals
+    vector<float> normals;
+    normals.reserve(mesh_geometry.vertex_normals.size() * 3);
+    for (auto normal : mesh_geometry.vertex_normals)
+    {
+        normals.push_back(static_cast<float>(normal.x));
+        normals.push_back(static_cast<float>(normal.y));
+        normals.push_back(static_cast<float>(normal.z));
+    }
+    buffer->setVertexNormals(normals);
+
     return true;
 }
 } // end namespace

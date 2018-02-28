@@ -277,6 +277,17 @@ void intensityToVertexRainbowColors(const std::vector<float>& intensity, mesh_ms
 
 bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBuffer& buffer);
 
+/**
+ * @brief Convert mesh_msgs::MeshGeometry to lvr2::MeshBuffer
+ * @param message to be read
+ * @param buffer to be returned
+ * @return bool success status
+ */
+bool fromMeshGeometryMessageToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    const lvr2::MeshBufferPtr<Vec>& buffer
+);
+
 } // end namespace
 
 #endif /* LVR_ROS_CONVERSIONS_H_ */

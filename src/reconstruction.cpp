@@ -26,6 +26,7 @@
 #include <memory>
 
 using std::make_shared;
+using std::move;
 
 
 #include <boost/uuid/uuid.hpp>
@@ -279,14 +280,14 @@ bool Reconstruction::createMeshMessageFromPointCloud(
         ROS_ERROR_STREAM("Reconstruction failed!");
         return false;
     }
-    if (!lvr_ros::fromMeshBufferToTriangleMesh(mesh_buffer_ptr->toOldBuffer(), mesh_msg.mesh))
+    /*if (!lvr_ros::fromMeshBufferToTriangleMesh(mesh_buffer_ptr->toOldBuffer(), mesh_msg.mesh))
     {
         ROS_ERROR_STREAM(
             "Could not convert point cloud from \"lvr::MeshBuffer\" "
             "to \"mesh_msgs::TriangleMeshStamped\"!"
         );
         return false;
-    }
+    }*/
     if (!lvr_ros::fromMeshBufferToMeshMessages(
             mesh_buffer_ptr,
             cache_mesh_geometry_stamped.mesh_geometry,
@@ -505,31 +506,31 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
         clusterBiMap = planarClusterGrowing(mesh, faceNormals, config.pnt);
     }
 
-    // Calc normals for vertices
+    // Calc normaBaseVecTls for vertices
     auto vertexNormals = calcVertexNormals(mesh, faceNormals, *surface);
 
     // Prepare color data for finalizing
     auto vertexColors = calcColorFromPointCloud(mesh, surface);
 
-    // Prepare finalize algorithm
-    lvr2::ClusterFlatteningFinalizer<Vec> finalize(clusterBiMap);
-    finalize.setVertexNormals(vertexNormals);
-    if (vertexColors)
-    {
-        finalize.setVertexColors(*vertexColors);
-    }
-
-    // Materializer for face materials (colors and/or textures)
-    lvr2::Materializer<Vec> materializer(
-        mesh,
-        clusterBiMap,
-        faceNormals,
-        *surface
-    );
-
     // When using textures ...
     if (config.generateTextures)
     {
+        // Prepare finalize algorithm
+        lvr2::ClusterFlatteningFinalizer<Vec> finalize(clusterBiMap);
+        finalize.setVertexNormals(vertexNormals);
+        if (vertexColors)
+        {
+            finalize.setVertexColors(*vertexColors);
+        }
+
+        // Materializer for face materials (colors and/or textures)
+        lvr2::Materializer<Vec> materializer(
+            mesh,
+            clusterBiMap,
+            faceNormals,
+            *surface
+        );
+
         // Set texturizer
         lvr2::Texturizer<Vec> texturizer(
             config.texelSize,
@@ -537,21 +538,33 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
             config.texMaxClusterSize
         );
         materializer.setTexturizer(texturizer);
+
+        // Generate materials
+        lvr2::MaterializerResult<Vec> matResult = materializer.generateMaterials();
+        // Add data to finalize algorithm
+        finalize.setMaterializerResult(matResult);
+
+        boost::shared_ptr<lvr2::MeshBuffer<Vec>> meshBufferBoostPtr = finalize.apply(mesh);
+        lvr2::MeshBuffer<Vec> bufferCopy = *meshBufferBoostPtr.get();
+        mesh_buffer = make_shared<lvr2::MeshBuffer<Vec>>(bufferCopy);
     }
-    // Generate materials
-    lvr2::MaterializerResult<Vec> matResult = materializer.generateMaterials();
-    // Add data to finalize algorithm
-    finalize.setMaterializerResult(matResult);
+    else
+    {
+        // Finalize mesh (convert it to simple `MeshBuffer`)
+        lvr2::FinalizeAlgorithm<Vec> finalize;
+        finalize.setNormalData(vertexNormals);
 
-    // Apply finalize algorithm
-    // FinalizeAlgorithm will generate a lvr2::MeshBuffer, which for now will be converted back to old lvr::MeshBuffer
-    // mesh_buffer = (*finalize.apply(mesh).get()).toOldBuffer();
+        // Convert boost::shared_ptr to std::shared_ptr
+        auto boostSharedPtr = finalize.apply(mesh);
+        auto stdSharedPtr = std::shared_ptr<lvr2::MeshBuffer<Vec>>(
+            boostSharedPtr.get(),
+            [boostSharedPtr](lvr2::MeshBuffer<Vec>*) mutable {
+                boostSharedPtr.reset();
+            }
+        );
 
-    // Apply finalize algorithm
-    // Do some weird stuff to convert boost:shared_ptr to std::shared_ptr
-    boost::shared_ptr<lvr2::MeshBuffer<Vec>> meshBufferBoostPtr = finalize.apply(mesh);
-    lvr2::MeshBuffer<Vec> bufferCopy = *meshBufferBoostPtr.get();
-    mesh_buffer = make_shared<lvr2::MeshBuffer<Vec>>(bufferCopy);
+        mesh_buffer = stdSharedPtr;
+    }
 
     ROS_INFO_STREAM("Reconstruction finished!");
     return true;
