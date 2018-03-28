@@ -51,7 +51,6 @@ using std::move;
 #include <lvr2/geometry/Normal.hpp>
 #include <lvr2/algorithm/FinalizeAlgorithms.hpp>
 #include <lvr2/geometry/BoundingBox.hpp>
-#include <lvr2/algorithm/Planar.hpp>
 #include <lvr2/algorithm/NormalAlgorithms.hpp>
 #include <lvr2/algorithm/CleanupAlgorithms.hpp>
 #include <lvr2/algorithm/ClusterAlgorithms.hpp>
