@@ -49,7 +49,7 @@ using std::move;
 #include <lvr2/geometry/Vector.hpp>
 #include <lvr2/geometry/Point.hpp>
 #include <lvr2/geometry/Normal.hpp>
-#include <lvr2/algorithm/FinalizeAlgorithm.hpp>
+#include <lvr2/algorithm/FinalizeAlgorithms.hpp>
 #include <lvr2/geometry/BoundingBox.hpp>
 #include <lvr2/algorithm/Planar.hpp>
 #include <lvr2/algorithm/NormalAlgorithms.hpp>
@@ -516,7 +516,7 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
     if (config.generateTextures)
     {
         // Prepare finalize algorithm
-        lvr2::ClusterFlatteningFinalizer<Vec> finalize(clusterBiMap);
+        lvr2::TextureFinalizer<Vec> finalize(clusterBiMap);
         finalize.setVertexNormals(vertexNormals);
         if (vertexColors)
         {
@@ -551,7 +551,7 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
     else
     {
         // Finalize mesh (convert it to simple `MeshBuffer`)
-        lvr2::FinalizeAlgorithm<Vec> finalize;
+        lvr2::SimpleFinalizer<Vec> finalize;
         finalize.setNormalData(vertexNormals);
 
         // Convert boost::shared_ptr to std::shared_ptr
