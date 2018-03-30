@@ -34,12 +34,212 @@
 namespace lvr_ros
 {
 
-bool fromMeshBufferToTriangleMesh(const lvr::MeshBufferPtr& buffer, mesh_msgs::TriangleMesh& mesh)
+bool fromMeshBufferToMeshGeometryMessage(
+    const lvr2::MeshBufferPtr<Vec>& buffer,
+    mesh_msgs::MeshGeometry& mesh_geometry
+){
+    unsigned int n_vertices = buffer->getVertices().size() / 3;
+    unsigned int n_faces = buffer->getFaceIndices().size() / 3;
+
+    ROS_DEBUG_STREAM("Copy vertices from MeshBuffer to MeshGeometry.");
+
+    // Copy vertices
+    mesh_geometry.vertices.resize(n_vertices);
+    auto buffer_vertices = buffer->getVertices();
+    for (unsigned int i = 0; i < n_vertices; i++)
+    {
+        mesh_geometry.vertices[i].x = buffer_vertices[i * 3];
+        mesh_geometry.vertices[i].y = buffer_vertices[i * 3 + 1];
+        mesh_geometry.vertices[i].z = buffer_vertices[i * 3 + 2];
+    }
+    buffer_vertices.clear();
+
+    ROS_DEBUG_STREAM("Copy faces from MeshBuffer to MeshGeometry.");
+
+    // Copy faces
+    auto buffer_faces = buffer->getFaceIndices();
+    mesh_geometry.faces.resize(n_faces);
+    for (unsigned int i = 0; i < n_faces; i++)
+    {
+        mesh_geometry.faces[i].vertex_indices[0] = buffer_faces[i * 3];
+        mesh_geometry.faces[i].vertex_indices[1] = buffer_faces[i * 3 + 1];
+        mesh_geometry.faces[i].vertex_indices[2] = buffer_faces[i * 3 + 2];
+    }
+    buffer_faces.clear();
+
+
+    // Copy vertex normals
+    auto buffer_vertexnormals = buffer->getVertexNormals();
+    if(!buffer_vertexnormals.empty())
+    {
+        if(buffer_vertexnormals.size() != n_vertices * 3)
+        {
+            ROS_FATAL_STREAM("The number of normals in the MeshBuffer differs"
+                                 "from the number of vertices! Ignoring normals!");
+        }else{
+            ROS_DEBUG_STREAM("Copy normals from MeshBuffer to MeshGeometry.");
+
+            mesh_geometry.vertex_normals.resize(n_vertices);
+            for (unsigned int i = 0; i < n_vertices; i++) {
+                mesh_geometry.vertex_normals[i].x = buffer_vertexnormals[i * 3];
+                mesh_geometry.vertex_normals[i].y = buffer_vertexnormals[i * 3 + 1];
+                mesh_geometry.vertex_normals[i].z = buffer_vertexnormals[i * 3 + 2];
+            }
+            buffer_vertexnormals.clear();
+        }
+    }else{
+        ROS_DEBUG_STREAM("No vertex normals given!");
+    }
+
+    ROS_DEBUG_STREAM("Successfully copied the MeshBuffer "
+                         "geometry to the MeshGeometry message.");
+    return true;
+}
+
+bool fromMeshBufferToMeshMessages(
+    const lvr2::MeshBufferPtr<Vec>& buffer,
+    mesh_msgs::MeshGeometry& mesh_geometry,
+    mesh_msgs::MeshMaterials& mesh_materials,
+    mesh_msgs::MeshVertexColors& mesh_vertex_colors,
+    boost::optional<std::vector<mesh_msgs::Texture>&> texture_cache,
+    std::string mesh_uuid
+)
+{
+    unsigned int n_vertices = buffer->getVertices().size() / 3;
+    unsigned int n_faces = buffer->getFaceIndices().size() / 3;
+    unsigned int n_clusters = buffer->getClusterFaceIndices().size();
+    unsigned int n_materials = buffer->getMaterials().size();
+    unsigned int n_textures = buffer->getTextures().size();
+    unsigned int n_vertex_colors = buffer->getVertexColors().size();
+
+    // copy vertices, faces and normals
+    fromMeshBufferToMeshGeometryMessage(buffer, mesh_geometry);
+
+    // Copy clusters
+    auto buffer_clusters = buffer->getClusterFaceIndices();
+    mesh_materials.clusters.resize(n_clusters);
+    for (unsigned int i = 0; i < n_clusters; i++)
+    {
+        int n = buffer_clusters[i].size();
+        mesh_materials.clusters[i].face_indices.resize(n);
+        for (unsigned int j = 0; j < n; j++)
+        {
+            mesh_materials.clusters[i].face_indices[j] = buffer_clusters[i][j];
+        }
+    }
+    buffer_clusters.clear();
+
+    // Copy materials
+    auto buffer_materials = buffer->getMaterials();
+    mesh_materials.materials.resize(n_materials);
+    for (unsigned int i = 0; i < n_materials; i++)
+    {
+        lvr2::Material m = buffer_materials[i];
+        if (m.m_color)
+        {
+            mesh_materials.materials[i].color.r = m.m_color.get()[0]/255.0;
+            mesh_materials.materials[i].color.g = m.m_color.get()[1]/255.0;
+            mesh_materials.materials[i].color.b = m.m_color.get()[2]/255.0;
+            mesh_materials.materials[i].color.a = 1.0;
+        }
+        else
+        {
+            mesh_materials.materials[i].color.r = 1.0;
+            mesh_materials.materials[i].color.g = 1.0;
+            mesh_materials.materials[i].color.b = 1.0;
+            mesh_materials.materials[i].color.a = 1.0;
+        }
+        if (m.m_texture)
+        {
+            mesh_materials.materials[i].has_texture = true;
+            mesh_materials.materials[i].texture_index = (int)m.m_texture.get().idx();
+        }
+        else
+        {
+            mesh_materials.materials[i].has_texture = false;
+            mesh_materials.materials[i].texture_index = 0;
+        }
+    }
+    buffer_materials.clear();
+
+    // Copy cluster material indices
+    auto buffer_cluster_materials = buffer->getClusterMaterialIndices();
+    mesh_materials.cluster_materials.resize(n_clusters);
+    for (unsigned int i = 0; i < n_clusters; i++)
+    {
+        mesh_materials.cluster_materials[i] = buffer_cluster_materials[i];
+    }
+    buffer_cluster_materials.clear();
+
+    // Copy vertex tex coords
+    auto buffer_texcoords = buffer->getVertexTextureCoordinates();
+    if (buffer_texcoords.size() > 0)
+    {
+        mesh_materials.vertex_tex_coords.resize(n_vertices);
+
+        for (unsigned int i = 0; i < n_vertices; i++)
+        {
+            mesh_materials.vertex_tex_coords[i].u = buffer_texcoords[i * 3];
+            mesh_materials.vertex_tex_coords[i].v = buffer_texcoords[i * 3 + 1];
+        }
+
+        buffer_texcoords.clear();
+    }
+
+    // Copy vertex colors
+    if (n_vertex_colors > 0)
+    {
+        auto buffer_vertex_colors = buffer->getVertexColors();
+        mesh_vertex_colors.vertex_colors.resize(n_vertices);
+        for (unsigned int i = 0; i < n_vertices; i++)
+        {
+            float r = buffer_vertex_colors[i * 3]/255.0;
+            mesh_vertex_colors.vertex_colors[i].r = r;
+            mesh_vertex_colors.vertex_colors[i].g = buffer_vertex_colors[i * 3 + 1]/255.0;
+            mesh_vertex_colors.vertex_colors[i].b = buffer_vertex_colors[i * 3 + 2]/255.0;
+            mesh_vertex_colors.vertex_colors[i].a = 1.0;
+        }
+        buffer_vertex_colors.clear();
+    }
+
+    // If texture cache is available, cache textures in given vector
+    if (texture_cache)
+    {
+        auto buffer_textures = buffer->getTextures();
+        texture_cache.get().resize(n_textures);
+        for (unsigned int i = 0; i < n_textures; i++)
+        {
+            sensor_msgs::Image image;
+            sensor_msgs::fillImage(
+                image,
+                "rgb8",
+                buffer_textures[i].m_height,
+                buffer_textures[i].m_width,
+                buffer_textures[i].m_width * 3, // step size
+                buffer_textures[i].m_data
+            );
+            mesh_msgs::Texture texture;
+            texture.uuid = mesh_uuid;
+            texture.texture_index = i;
+            texture.image = image;
+            texture_cache.get().at(i) = texture;
+        }
+        buffer_textures.clear();
+    }
+
+    return true;
+}
+
+bool fromMeshBufferToTriangleMesh(
+    const lvr::MeshBufferPtr& buffer,
+    mesh_msgs::TriangleMesh& mesh)
 {
     return fromMeshBufferToTriangleMesh(*buffer, mesh);
 }
 
-bool fromMeshBufferToTriangleMesh(lvr::MeshBuffer& buffer, mesh_msgs::TriangleMesh& mesh)
+bool fromMeshBufferToTriangleMesh(
+    lvr::MeshBuffer& buffer,
+    mesh_msgs::TriangleMesh& mesh)
 {
     size_t numVertices = 0;
     size_t numFaces = 0;
@@ -101,7 +301,80 @@ bool fromMeshBufferToTriangleMesh(lvr::MeshBuffer& buffer, mesh_msgs::TriangleMe
     }
 }
 
-bool fromTriangleMeshToMeshBuffer(const mesh_msgs::TriangleMesh& mesh, lvr::MeshBuffer& buffer)
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
+    lvr2::MeshBuffer<Vec>& buffer)
+{
+    fromMeshGeometryToMeshBuffer(*mesh_geometry_ptr, buffer);
+}
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr)
+{
+    fromMeshGeometryToMeshBuffer(*mesh_geometry_ptr, *buffer_ptr);
+}
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr)
+{
+    fromMeshGeometryToMeshBuffer(*mesh_geometry_ptr, *buffer_ptr);
+}
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
+    lvr2::MeshBuffer<Vec>& buffer)
+{
+    fromMeshGeometryToMeshBuffer(*mesh_geometry_ptr, buffer);
+}
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr)
+{
+    fromMeshGeometryToMeshBuffer(mesh_geometry, *buffer_ptr);
+}
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    lvr2::MeshBuffer<Vec>& buffer)
+{
+    std::vector<float> vertices;
+    vertices.reserve(mesh_geometry.vertices.size() * 3);
+    for(const geometry_msgs::Point& p : mesh_geometry.vertices)
+    {
+        vertices.push_back(p.x);
+        vertices.push_back(p.y);
+        vertices.push_back(p.z);
+    }
+    buffer.setVertices(vertices);
+
+    std::vector<unsigned int> faces;
+    faces.reserve(mesh_geometry.faces.size() * 3);
+    for(const mesh_msgs::TriangleIndices& t : mesh_geometry.faces)
+    {
+        faces.push_back(t.vertex_indices[0]);
+        faces.push_back(t.vertex_indices[1]);
+        faces.push_back(t.vertex_indices[2]);
+    }
+    buffer.setFaceIndices(faces);
+
+    std::vector<float> normals;
+    normals.reserve(mesh_geometry.vertex_normals.size() * 3);
+    for(const geometry_msgs::Point& n : mesh_geometry.vertex_normals)
+    {
+        normals.push_back(n.x);
+        normals.push_back(n.y);
+        normals.push_back(n.z);
+    }
+    buffer.setVertexNormals(normals);
+    return true;
+}
+
+bool fromTriangleMeshToMeshBuffer(
+    const mesh_msgs::TriangleMesh& mesh,
+    lvr::MeshBuffer& buffer)
 {
     // copy vertices
     vector<float> vertices;
@@ -284,8 +557,12 @@ void removeDuplicates(lvr::MeshBuffer& buffer)
     buffer.setFaceArray(new_indexBuffer);
 }
 
-void intensityToTriangleRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh, float min,
-                                      float max)
+void intensityToTriangleRainbowColors(
+    const std::vector<float>& intensity,
+    mesh_msgs::TriangleMesh& mesh,
+    float min,
+    float max
+)
 {
     float range = max - min;
 
@@ -319,8 +596,12 @@ void intensityToTriangleRainbowColors(const std::vector<float>& intensity, mesh_
     intensityToTriangleRainbowColors(intensity, mesh, min, max);
 }
 
-void
-intensityToVertexRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh, float min, float max)
+void intensityToVertexRainbowColors(
+    const std::vector<float>& intensity,
+    mesh_msgs::TriangleMesh& mesh,
+    float min,
+    float max
+)
 {
     float range = max - min;
 
@@ -337,6 +618,31 @@ intensityToVertexRainbowColors(const std::vector<float>& intensity, mesh_msgs::T
         color.g = g;
         color.b = b;
         mesh.vertex_colors.push_back(color);
+    }
+}
+
+void intensityToVertexRainbowColors(
+    const lvr2::DenseVertexMap<float>& intensity,
+    mesh_msgs::TriangleMesh& mesh,
+    float min,
+    float max
+)
+{
+    float range = max - min;
+
+    float r, g, b;
+    float a = 1;
+
+    for (auto intensity_val: intensity)
+    {
+        float norm = (intensity[intensity_val] - min) / range;
+        getRainbowColor(norm, r, g, b);
+        std_msgs::ColorRGBA color;
+        color.a = a;
+        color.r = r;
+        color.g = g;
+        color.b = b;
+        mesh.triangle_colors.push_back(color);
     }
 }
 
@@ -536,6 +842,47 @@ bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBu
     }
     buffer = PointBuffer(old_buffer);
     ROS_DEBUG_STREAM("conversion finished.");
+    return true;
+}
+
+bool fromMeshGeometryMessageToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    const lvr2::MeshBufferPtr<Vec>& buffer
+)
+{
+    // copy vertices
+    vector<float> vertices;
+    vertices.reserve(mesh_geometry.vertices.size() * 3);
+    for (auto vertex : mesh_geometry.vertices)
+    {
+        vertices.push_back(static_cast<float>(vertex.x));
+        vertices.push_back(static_cast<float>(vertex.y));
+        vertices.push_back(static_cast<float>(vertex.z));
+    }
+    buffer->setVertices(vertices);
+
+    // copy faces
+    vector<unsigned int> faces;
+    faces.reserve(mesh_geometry.faces.size() * 3);
+    for (auto face : mesh_geometry.faces)
+    {
+        faces.push_back(face.vertex_indices[0]);
+        faces.push_back(face.vertex_indices[1]);
+        faces.push_back(face.vertex_indices[2]);
+    }
+    buffer->setFaceIndices(faces);
+
+    // copy normals
+    vector<float> normals;
+    normals.reserve(mesh_geometry.vertex_normals.size() * 3);
+    for (auto normal : mesh_geometry.vertex_normals)
+    {
+        normals.push_back(static_cast<float>(normal.x));
+        normals.push_back(static_cast<float>(normal.y));
+        normals.push_back(static_cast<float>(normal.z));
+    }
+    buffer->setVertexNormals(normals);
+
     return true;
 }
 } // end namespace

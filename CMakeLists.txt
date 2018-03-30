@@ -10,8 +10,15 @@ set(PACKAGE_DEPENDENCIES
   mesh_msgs
   message_generation
   message_runtime
+  mbf_utility
   roscpp
   sensor_msgs
+  geometry_msgs
+  hyperspectral_calibration
+  label_manager
+  tf
+  pcl_ros
+  pcl_definitions
 )
 
 find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})
@@ -25,6 +32,9 @@ add_action_files(
   action
   FILES
   Reconstruct.action
+  SendCloud.action
+  StartReconstruction.action
+  StopReconstruction.action
 )
 
 find_path(OPENGL_INC gl.h /usr/include/GL)
@@ -32,6 +42,11 @@ include_directories(${OPENGL_INC})
 
 find_package(PCL 1.2 REQUIRED)
 include_directories(SYSTEM ${PCL_INCLUDE_DIRS})
+
+find_package(OpenCL)
+if(OPENCL_FOUND)
+    message(STATUS "OpenCL Libraries: ${OpenCL_LIBRARIES}")
+endif()
 
 ### compile with c++11
 if ("${CMAKE_VERSION}" VERSION_LESS "3.1")
@@ -58,6 +73,7 @@ generate_messages(
   actionlib_msgs
   mesh_msgs
   sensor_msgs
+  geometry_msgs
 )
 
 catkin_package(
@@ -82,11 +98,36 @@ add_executable(${PROJECT_NAME}_reconstruction
   src/conversions.cpp
   src/reconstruction.cpp
 )
+
 target_link_libraries(${PROJECT_NAME}_reconstruction
     ${catkin_LIBRARIES}
     ${LVR_LIBRARIES}
     ${PCL_LIBRARIES}
 )
+
+add_executable(${PROJECT_NAME}_remote_reconstruction_client
+    src/remote_reconstruction_client.cpp
+)
+
+add_executable(${PROJECT_NAME}_remote_reconstruction
+  src/colors.cpp
+  src/conversions.cpp
+  src/remote_reconstruction.cpp
+  src/FileObserver.cpp
+)
+target_link_libraries(${PROJECT_NAME}_remote_reconstruction
+    ${catkin_LIBRARIES}
+    ${LVR_LIBRARIES}
+    ${PCL_LIBRARIES}
+)
+
+target_link_libraries(${PROJECT_NAME}_remote_reconstruction_client
+    ${catkin_LIBRARIES}
+    ${PCL_LIBRARIES}
+)
+if(OPENCL_FOUND)
+    target_compile_definitions(${PROJECT_NAME}_reconstruction PRIVATE OPENCL_FOUND=1)
+endif()
 
 add_executable(${PROJECT_NAME}_debug
     src/debug.cpp
@@ -98,9 +139,47 @@ target_link_libraries(${PROJECT_NAME}_debug
     ${PROJECT_NAME}_conversions
 )
 
-add_dependencies(${PROJECT_NAME}_reconstruction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
-add_dependencies(${PROJECT_NAME}_conversions ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
-add_dependencies(${PROJECT_NAME}_debug ${catkin_EXPORTED_TARGETS})
+# HDF5 to message executable
+# link libraries
+find_package(HDF5 REQUIRED COMPONENTS C CXX HL)
+include_directories(${HDF5_INCLUDE_DIRS})
+link_directories(${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+# create executable
+add_executable(${PROJECT_NAME}_hdf5_to_msg src/hdf5_to_msg.cpp)
+target_link_libraries(${PROJECT_NAME}_hdf5_to_msg
+    ${catkin_LIBRARIES}
+    ${LVR_LIBRARIES}
+    ${PCL_LIBRARIES}
+    ${HDF5_LIBRARIES}
+    ${PROJECT_NAME}_conversions
+  )
+
+
+add_dependencies(${PROJECT_NAME}_remote_reconstruction
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  ${PROJECT_NAME}_gencpp
+)
+add_dependencies(${PROJECT_NAME}_remote_reconstruction_client
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  ${PROJECT_NAME}_gencpp
+  )
+add_dependencies(${PROJECT_NAME}_reconstruction
+  ${lvr_ros_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  ${PROJECT_NAME}_gencpp
+)
+add_dependencies(${PROJECT_NAME}_conversions
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  ${PROJECT_NAME}_gencpp
+)
+add_dependencies(${PROJECT_NAME}_debug
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencpp
+)
 
 install(
   DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})

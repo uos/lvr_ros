@@ -26,6 +26,12 @@
 #include <memory>
 
 using std::make_shared;
+using std::move;
+
+
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
 
 #include "lvr_ros/reconstruction.h"
 #include "lvr_ros/conversions.h"
@@ -43,10 +49,11 @@ using std::make_shared;
 #include <lvr2/geometry/Vector.hpp>
 #include <lvr2/geometry/Point.hpp>
 #include <lvr2/geometry/Normal.hpp>
-#include <lvr2/algorithm/FinalizeAlgorithm.hpp>
+#include <lvr2/algorithm/FinalizeAlgorithms.hpp>
 #include <lvr2/geometry/BoundingBox.hpp>
-#include <lvr2/algorithm/Planar.hpp>
 #include <lvr2/algorithm/NormalAlgorithms.hpp>
+#include <lvr2/algorithm/CleanupAlgorithms.hpp>
+#include <lvr2/algorithm/ClusterAlgorithms.hpp>
 #include <lvr2/algorithm/ClusterPainter.hpp>
 #include <lvr2/geometry/Handles.hpp>
 #include <lvr2/util/ClusterBiMap.hpp>
@@ -61,41 +68,73 @@ using std::make_shared;
 #include <lvr2/reconstruction/PointsetGrid.hpp>
 #include <lvr2/io/PointBuffer.hpp>
 #include <lvr2/util/Factories.hpp>
+#include <lvr2/util/Panic.hpp>
+
+#if defined CUDA_FOUND
+    #define GPU_FOUND
+
+    #include <lvr/reconstruction/cuda/CudaSurface.hpp>
+    typedef lvr::CudaSurface GpuSurface;
+#elif defined OPENCL_FOUND
+    #define GPU_FOUND
+
+    #include <lvr/reconstruction/opencl/ClSurface.hpp>
+    typedef lvr::ClSurface GpuSurface;
+#endif
 
 namespace lvr_ros
 {
 
-// typedef lvr::cVertex cVertex;
-// typedef lvr::cNormal cNormal;
-// typedef lvr::PointsetSurface< cVertex > psSurface;
-// typedef lvr::AdaptiveKSearchSurface< cVertex, cNormal > akSurface;
-// typedef lvr::PCLKSurface< cVertex, cNormal > pclSurface;
+/**********************************************************************************************************************/
+// Constructor
 
-Reconstruction::Reconstruction() : as_(node_handle, "reconstruction", boost::bind(&Reconstruction::reconstruct, this, _1), false)
+Reconstruction::Reconstruction()
+    : as_(node_handle, "reconstruction", boost::bind(&Reconstruction::reconstruct, this, _1), false)
 {
     ros::NodeHandle nh("~");
 
-    cloud_subscriber = node_handle.subscribe("/pointcloud", 1, &Reconstruction::pointCloudCallback, this);
+    cloud_subscriber = node_handle.subscribe(
+        "/pointcloud",
+        1,
+        &Reconstruction::pointCloudCallback,
+        this
+    );
     mesh_publisher = node_handle.advertise<mesh_msgs::TriangleMeshStamped>("/mesh", 1);
+    mesh_geometry_publisher = node_handle.advertise<mesh_msgs::MeshGeometryStamped>("/mesh_geometry", 1);
 
-    // setup dynamic reconfigure
+    // Setup dynamic reconfigure
     reconfigure_server_ptr = DynReconfigureServerPtr(new DynReconfigureServer(nh));
     callback_type = boost::bind(&Reconstruction::reconfigureCallback, this, _1, _2);
     reconfigure_server_ptr->setCallback(callback_type);
 
-    // start action server
+    // Start action server
     as_.start();
+
+    // Start services
+    srv_get_geometry_ = node_handle.advertiseService("get_geometry", &Reconstruction::service_getGeometry, this);
+    srv_get_materials_ = node_handle.advertiseService("get_materials", &Reconstruction::service_getMaterials, this);
+    srv_get_texture_ = node_handle.advertiseService("get_texture", &Reconstruction::service_getTexture, this);
+    srv_get_uuid_ = node_handle.advertiseService("get_uuid", &Reconstruction::service_getUUID, this);
+    srv_get_vertex_colors_ = node_handle.advertiseService(
+        "get_vertex_colors",
+        &Reconstruction::service_getVertexColors,
+        this
+    );
+
 }
 
-Reconstruction::~Reconstruction()
-{}
+/**********************************************************************************************************************/
+// Actions & Services
 
 void Reconstruction::reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal)
 {
+    ROS_INFO("Action: Reconstruct");
     try
     {
         lvr_ros::ReconstructResult result;
-        createMesh(goal->point_cloud, result.mesh);
+        mesh_msgs::TriangleMeshStamped mesh; // deprecated
+        createMeshMessageFromPointCloud(goal->cloud, mesh);
+        result.mesh = cache_mesh_geometry_stamped;
         as_.setSucceeded(result, "Published mesh.");
     }
     catch(std::exception& e)
@@ -105,11 +144,93 @@ void Reconstruction::reconstruct(const lvr_ros::ReconstructGoalConstPtr& goal)
     }
 }
 
+bool Reconstruction::service_getGeometry(
+    mesh_msgs::GetGeometry::Request& req,
+    mesh_msgs::GetGeometry::Response& res
+)
+{
+    ROS_INFO("Service: Get Geometry");
+    if (!cache_initialized || req.uuid != cache_uuid)
+    {
+        return false;
+    }
+    res.mesh_geometry_stamped = cache_mesh_geometry_stamped;
+    return true;
+}
+
+bool Reconstruction::service_getMaterials(
+    mesh_msgs::GetMaterials::Request& req,
+    mesh_msgs::GetMaterials::Response& res
+)
+{
+    ROS_INFO("Service: Get Materials");
+    if (!cache_initialized || req.uuid != cache_uuid)
+    {
+        return false;
+    }
+    res.mesh_materials_stamped = cache_mesh_materials_stamped;
+    return true;
+}
+
+bool Reconstruction::service_getTexture(
+    mesh_msgs::GetTexture::Request& req,
+    mesh_msgs::GetTexture::Response& res
+)
+{
+    ROS_INFO("Service: Get Texture");
+    if (!cache_initialized || req.uuid != cache_uuid || req.texture_index > cache_textures.size() - 1)
+    {
+        return false;
+    }
+    res.texture = cache_textures.at(req.texture_index);
+    return true;
+}
+
+bool Reconstruction::service_getVertexColors(
+    mesh_msgs::GetVertexColors::Request& req,
+    mesh_msgs::GetVertexColors::Response& res
+)
+{
+    ROS_INFO("Service: Get Vertex Colors");
+    if (!cache_initialized || req.uuid != cache_uuid)
+    {
+        return false;
+    }
+    res.mesh_vertex_colors_stamped = cache_mesh_vertex_colors_stamped;
+    return true;
+}
+
+bool Reconstruction::service_getUUID(
+    mesh_msgs::GetUUID::Request& req,
+    mesh_msgs::GetUUID::Response& res
+)
+{
+    ROS_INFO("Service: Get UUID");
+    if (!cache_initialized)
+    {
+        return false;
+    }
+    res.uuid = cache_uuid;
+    return true;
+}
+
+/**********************************************************************************************************************/
+// Callbacks
+
 void Reconstruction::pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud)
 {
     mesh_msgs::TriangleMeshStamped mesh;
-    createMesh(*cloud, mesh);
+    if (!createMeshMessageFromPointCloud(*cloud, mesh))
+    {
+        ROS_ERROR_STREAM("Error in PointCloud callback");
+    }
+
+    ROS_INFO_STREAM("Publish mesh geometry");
+
+    // Reconstruction is done, publish TriangleMesh (deprecated!)
     mesh_publisher.publish(mesh);
+    // .. and also publish MeshGeometry (new! use this)
+    mesh_geometry_publisher.publish(cache_mesh_geometry_stamped);
 }
 
 void Reconstruction::reconfigureCallback(lvr_ros::ReconstructionConfig& config, uint32_t level)
@@ -117,47 +238,107 @@ void Reconstruction::reconfigureCallback(lvr_ros::ReconstructionConfig& config, 
     this->config = config;
 }
 
-bool Reconstruction::createMesh(const sensor_msgs::PointCloud2& cloud, mesh_msgs::TriangleMeshStamped& mesh_msg)
+/**********************************************************************************************************************/
+// Reconstruction Logic
+
+bool Reconstruction::createMeshMessageFromPointCloud(
+    const sensor_msgs::PointCloud2& cloud,
+    mesh_msgs::TriangleMeshStamped& mesh_msg
+)
 {
+    // Generate uuid for new mesh
+    boost::uuids::uuid boost_uuid = boost::uuids::random_generator()();
+    std::string uuid = boost::lexical_cast<std::string>(boost_uuid);
+
+    /*
+     * This method will generate
+     *   - a TriangleMesh message
+     *       - this message will be published in the callback or action function that is calling this method
+     *   - a MeshGeometry message and all corresponding MeshAttribute messages
+     *       - these messages will be cached and will be available via a service
+     *
+     * Please note: For future versions, it is not intended to keep both messages around. TriangleMesh will be
+     * discontinued in favor of the new message structure. To ensure a smooth transition between both APIs, this
+     * version of LVR_ROS will be able to generate both messages.
+     */
+
+
     PointBufferPtr point_buffer_ptr(new PointBuffer);
-    lvr::MeshBufferPtr mesh_buffer_ptr(new lvr::MeshBuffer);
+    lvr2::MeshBufferPtr<Vec> mesh_buffer_ptr(new lvr2::MeshBuffer<Vec>);
 
     if (!lvr_ros::fromPointCloud2ToPointBuffer(cloud, *point_buffer_ptr))
     {
-        ROS_ERROR_STREAM("Could not convert point cloud from \"sensor_msgs::PointCloud2\" to \"lvr::PointBuffer\"!");
+        ROS_ERROR_STREAM(
+            "Could not convert point cloud from \"sensor_msgs::PointCloud2\" "
+            "to \"lvr::PointBuffer\"!"
+        );
         return false;
     }
-    if (!createMesh(point_buffer_ptr, mesh_buffer_ptr))
+    if (!createMeshBufferFromPointBuffer(point_buffer_ptr, mesh_buffer_ptr))
     {
         ROS_ERROR_STREAM("Reconstruction failed!");
         return false;
     }
-    if (!lvr_ros::fromMeshBufferToTriangleMesh(mesh_buffer_ptr, mesh_msg.mesh))
+    /*if (!lvr_ros::fromMeshBufferToTriangleMesh(mesh_buffer_ptr->toOldBuffer(), mesh_msg.mesh))
     {
         ROS_ERROR_STREAM(
-            "Could not convert point cloud from \"lvr::MeshBuffer\" to \"mesh_msgs::TriangleMeshStamped\"!");
+            "Could not convert point cloud from \"lvr::MeshBuffer\" "
+            "to \"mesh_msgs::TriangleMeshStamped\"!"
+        );
+        return false;
+    }*/
+    if (!lvr_ros::fromMeshBufferToMeshMessages(
+            mesh_buffer_ptr,
+            cache_mesh_geometry_stamped.mesh_geometry,
+            cache_mesh_materials_stamped.mesh_materials,
+            cache_mesh_vertex_colors_stamped.mesh_vertex_colors,
+            cache_textures,
+            uuid
+    ))
+    {
+        ROS_ERROR_STREAM("Could not convert \"lvr2::MeshBuffer\" to mesh messages!");
         return false;
     }
 
-    // setting header frame and stamp
+    // Setting header frame and stamp for TriangleMesh
     mesh_msg.header.frame_id = cloud.header.frame_id;
     mesh_msg.header.stamp = cloud.header.stamp;
+
+    // The following segment will update new MeshGeometry and MeshAttribute messages in cache
+    // These messages will be available via action/service
+    cache_initialized = true;
+
+    // Setting header frame and stamp
+    cache_mesh_geometry_stamped.header.frame_id = cloud.header.frame_id;
+    cache_mesh_geometry_stamped.header.stamp = cloud.header.stamp;
+    cache_mesh_materials_stamped.header.frame_id = cloud.header.frame_id;
+    cache_mesh_materials_stamped.header.stamp = cloud.header.stamp;
+    cache_mesh_vertex_colors_stamped.header.frame_id = cloud.header.frame_id;
+    cache_mesh_vertex_colors_stamped.header.stamp = cloud.header.stamp;
+
+    cache_mesh_geometry_stamped.uuid = uuid;
+    cache_mesh_materials_stamped.uuid = uuid;
+    cache_mesh_vertex_colors_stamped.uuid = uuid;
+
+    cache_uuid = uuid;
 
     return true;
 }
 
-bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr& mesh_buffer)
+bool Reconstruction::createMeshBufferFromPointBuffer(
+    PointBufferPtr& point_buffer,
+    lvr2::MeshBufferPtr<Vec>& mesh_buffer
+)
 {
-
     // Create a point cloud manager
     string pcm_name = config.pcm;
-    lvr2::PointsetSurfacePtr <Vec> surface;
+    lvr2::PointsetSurfacePtr<Vec> surface;
+    bool use_gpu = config.useGPU;
 
     // Create point set surface object
     if (pcm_name == "PCL")
     {
-        throw "PCL not supported right meow!";
-        // surface = psSurface::Ptr( new pclSurface(point_buffer));
+        lvr2::panic("PCL not supported right meow!");
     }
     else if (
         pcm_name == "STANN" ||
@@ -192,7 +373,36 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
     // Calculate normals if necessary
     if (!point_buffer->hasNormals() || config.recalcNormals)
     {
-        surface->calculateSurfaceNormals();
+        if(use_gpu){
+            #ifdef GPU_FOUND
+                size_t num_points;
+                lvr::floatArr points;
+                lvr::PointBuffer old_buffer = point_buffer->toOldBuffer();
+                points = old_buffer.getPointArray(num_points);
+                lvr::floatArr normals = lvr::floatArr(new float[ num_points * 3 ]);
+                ROS_INFO_STREAM("Generate GPU kd-tree...");
+                GpuSurface gpu_surface(points, num_points);
+                ROS_INFO_STREAM("finished.");
+
+                gpu_surface.setKn(config.kn);
+                gpu_surface.setKi(config.ki);
+                gpu_surface.setFlippoint(config.flipx, config.flipy, config.flipz);
+                ROS_INFO_STREAM("Start Normal Calculation...");
+                gpu_surface.calculateNormals();
+                gpu_surface.getNormals(normals);
+                ROS_INFO_STREAM("finished.");
+                old_buffer.setPointNormalArray(normals, num_points);
+                point_buffer->copyNormalsFrom(old_buffer);
+                gpu_surface.freeGPU();
+            #else
+                std::cout << "ERROR: GPU Driver not installed" << std::endl;
+                surface->calculateSurfaceNormals();
+            #endif
+        }
+        else
+        {
+            surface->calculateSurfaceNormals();
+        }
     }
     else
     {
@@ -201,82 +411,6 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
 
     // Create an empty mesh
     lvr2::HalfEdgeMesh <Vec> mesh;
-    // lvr::HalfEdgeMesh<cVertex , cNormal > mesh( surface );
-
-    // // Set recursion depth for region growing
-    // if(config.depth)
-    // {
-    //     mesh.setDepth(config.depth);
-    // }
-
-    // if(config.texelSize)
-    // {
-    //     lvr::Texture::m_texelSize = config.texelSize;
-    // }
-
-    // if(config.texturePack != "")
-    // {
-    //     lvr::Texturizer<lvr::Vertex<float> , lvr::cNormal >::m_filename = config.texturePack;
-    //     if(! config.texturePack.empty())
-    //     {
-    //         float* sc = getStatsCoeffs(config.texturePack);
-    //         for (int i = 0; i < 14; i++)
-    //         {
-    //             lvr::Statistics::m_coeffs[i] = sc[i];
-    //         }
-    //         delete sc;
-    //     }
-    //     if(config.numStatsColors)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_numStatsColors = config.numStatsColors;
-    //     }
-    //     if(config.numCCVColors)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_numCCVColors = config.numCCVColors;
-    //     }
-    //     if(config.coherenceThreshold)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_coherenceThreshold = config.coherenceThreshold;
-    //     }
-
-    //     if(config.colorThreshold)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_colorThreshold = config.colorThreshold;
-    //     }
-    //     if(config.statsThreshold)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_statsThreshold = config.statsThreshold;
-    //     }
-    //     if(config.useCrossCorr)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_useCrossCorr = config.useCrossCorr;
-    //     }
-    //     if(config.featureThreshold)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_featureThreshold = config.featureThreshold;
-    //     }
-    //     if(config.patternThreshold)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_patternThreshold = config.patternThreshold;
-    //     }
-    //     if(config.textureAnalysis)
-    //     {
-    //         lvr::Texturizer<lvr::Vertex<float> , cNormal >::m_doAnalysis = true;
-    //     }
-    //     if(config.minTransformVotes)
-    //     {
-    //         lvr::Transform::m_minimumVotes = config.minTransformVotes;
-    //     }
-    // }
-
-    // if(config.sharpFeatThreshold)
-    // {
-    //     lvr::SharpBox<lvr::Vertex<float> , lvr::cNormal >::m_theta_sharp = config.sharpFeatThreshold;
-    // }
-    // if(config.sharpCornThreshold)
-    // {
-    //     lvr::SharpBox<lvr::Vertex<float> , lvr::cNormal >::m_phi_corner = config.sharpCornThreshold;
-    // }
 
     // Determine whether to use intersections or voxelsize
     float resolution;
@@ -306,20 +440,7 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
     unique_ptr <lvr2::FastReconstructionBase<Vec>> reconstruction;
     if (decomposition == "MC")
     {
-        // grid = make_shared<PointsetGrid<
-        //     ColorVertex<float, unsigned char>,
-        //     FastBox<ColorVertex<float, unsigned char>,
-        //     Normal<float>
-        // >>(resolution, surface, surface->getBoundingBox(), useVoxelsize, options.extrude());
-        //         auto ps_grid = static_cast<PointsetGrid<ColorVertex<float, unsigned char>,
-        //              FastBox<ColorVertex<float, unsigned char>, Normal<float> > > *>(grid);
-        //         ps_grid->calcDistanceValues();
-        //         reconstruction = new FastReconstruction<
-        //             ColorVertex<float, unsigned char>,
-        //             Normal<float>,
-        //             FastBox<ColorVertex<float, unsigned char>, Normal<float>>
-        //         >(ps_grid);
-
+        lvr2::panic("MC decomposition type not supported right now!");
     }
     else if (decomposition == "PMC")
     {
@@ -337,120 +458,119 @@ bool Reconstruction::createMesh(PointBufferPtr& point_buffer, lvr::MeshBufferPtr
     }
     else if (decomposition == "SF")
     {
-        //         SharpBox<ColorVertex<float, unsigned char>, Normal<float> >::m_surface = surface;
-        //         grid = new PointsetGrid<ColorVertex<float, unsigned char>, SharpBox<ColorVertex<float,
-        //              unsigned char>, Normal<float> > >(
-        //                  resolution, surface, surface->getBoundingBox(), useVoxelsize, options.extrude()
-        //              );
-        //         auto ps_grid = static_cast<PointsetGrid<ColorVertex<float, unsigned char>,
-        //              SharpBox<ColorVertex<float, unsigned char>, Normal<float> > > *>(grid);
-        //         ps_grid->calcDistanceValues();
-        //         reconstruction = new FastReconstruction<
-        //             ColorVertex<float, unsigned char>,
-        //             Normal<float>,
-        //             SharpBox<ColorVertex<float, unsigned char>, Normal<float>>
-        //         >(ps_grid);
+        lvr2::panic("SF decomposition type not supported right now!");
     }
 
     // Create mesh
     reconstruction->getMesh(mesh);
 
-    // if(config.danglingArtifacts)
-    // {
-    //     mesh.removeDanglingArtifacts(config.danglingArtifacts);
-    // }
 
-    // Optimize mesh
-    // mesh.cleanContours(config.cleanContours);
-    // mesh.setClassifier(config.classifier);
-    // mesh.getClassifier().setMinRegionSize(config.smallRegionThreshold);
+    // =======================================================================
+    // Optimize and finalize mesh
+    // =======================================================================
+    if(config.rda != 0)
+    {
+        removeDanglingCluster(mesh, static_cast<size_t>(config.rda));
+    }
 
-    // if(config.optimizePlanes)
-    // {
-    //     mesh.optimizePlanes(config.planeIterations,
-    //             config.normalThreshold,
-    //             config.minPlaneSize,
-    //             config.smallRegionThreshold,
-    //             true);
+    // Magic number from lvr1 `cleanContours`...
+    cleanContours(mesh, config.cleanContours, 0.0001);
 
-    //     mesh.fillHoles(config.fillHoles);
-    //     mesh.optimizePlaneIntersections();
-    //     mesh.restorePlanes(config.minPlaneSize);
-
-    //     if(config.numEdgeCollapses)
-    //     {
-    //         lvr::QuadricVertexCosts<cVertex , cNormal > c = lvr::QuadricVertexCosts<cVertex , cNormal >(true);
-    //         mesh.reduceMeshByCollapse(config.numEdgeCollapses, c);
-    //     }
-    // }
-    // else if(config.clusterPlanes)
-    // {
-    //     mesh.clusterRegions(config.normalThreshold, config.minPlaneSize);
-    //     mesh.fillHoles(config.fillHoles);
-    // }
+    naiveFillSmallHoles(mesh, static_cast<size_t>(config.fillHoles), false);
 
     auto faceNormals = calcFaceNormals(mesh);
 
-    lvr2::ClusterBiMap <lvr2::FaceHandle> clusterSet;
+    lvr2::ClusterBiMap <lvr2::FaceHandle> clusterBiMap;
     if (config.optimizePlanes)
     {
-        clusterSet = iterativePlanarClusterGrowing(
+        clusterBiMap = iterativePlanarClusterGrowing(
             mesh,
             faceNormals,
-            config.normalThreshold,
+            config.pnt,
             config.planeIterations,
-            config.minPlaneSize
+            config.mp
         );
+
+        if (config.smallRegionThreshold > 0)
+        {
+            deleteSmallPlanarCluster(
+                mesh,
+                clusterBiMap,
+                static_cast<size_t>(config.smallRegionThreshold)
+            );
+        }
     }
     else
     {
-        clusterSet = planarClusterGrowing(mesh, faceNormals, config.normalThreshold);
+        clusterBiMap = planarClusterGrowing(mesh, faceNormals, config.pnt);
     }
 
-    //ClusterPainter painter(clusterSet);
-    //auto colorMap = optional<VertexMap<ClusterPainter::Rgb8Color>>(painter.simpsons(mesh));
-    //auto colorMap = painter.fromPointCloud(mesh, surface);
-
-    // Calc normals for vertices
+    // Calc normaBaseVecTls for vertices
     auto vertexNormals = calcVertexNormals(mesh, faceNormals, *surface);
 
-    lvr2::FinalizeAlgorithm <Vec> finalize;
-    finalize.setNormalData(vertexNormals);
+    // Prepare color data for finalizing
+    auto vertexColors = calcColorFromPointCloud(mesh, surface);
 
-    //if (colorMap)
-    //{
-    //    finalize.setColorData(*colorMap);
-    //}
+    // When using textures ...
+    if (config.generateTextures)
+    {
+        // Prepare finalize algorithm
+        lvr2::TextureFinalizer<Vec> finalize(clusterBiMap);
+        finalize.setVertexNormals(vertexNormals);
+        if (vertexColors)
+        {
+            finalize.setVertexColors(*vertexColors);
+        }
 
-    mesh_buffer = finalize.apply(mesh);
+        // Materializer for face materials (colors and/or textures)
+        lvr2::Materializer<Vec> materializer(
+            mesh,
+            clusterBiMap,
+            faceNormals,
+            *surface
+        );
 
-    // // Create output model and save to file
-    // auto model = new lvr::Model(buffer);
-    // lvr::ModelPtr m(model);
-    // cout << timestamp << "Saving mesh." << endl;
-    // lvr::ModelFactory::saveModel( m, "triangle_mesh.ply");
+        // Set texturizer
+        lvr2::Texturizer<Vec> texturizer(
+            config.texelSize,
+            config.texMinClusterSize,
+            config.texMaxClusterSize
+        );
+        materializer.setTexturizer(texturizer);
 
-    // // Save triangle mesh
-    // if ( config.retesselate )
-    // {
-    //     mesh.finalizeAndRetesselate(config.generateTextures, config.lineFusionThreshold);
-    // }
-    // else
-    // {
-    //     mesh.finalize();
-    // }
+        // Generate materials
+        lvr2::MaterializerResult<Vec> matResult = materializer.generateMaterials();
+        // Add data to finalize algorithm
+        finalize.setMaterializerResult(matResult);
 
-    // // Write classification to file
-    // if ( config.writeClassificationResult )
-    // {
-    //     mesh.writeClassificationResult();
-    // }
+        boost::shared_ptr<lvr2::MeshBuffer<Vec>> meshBufferBoostPtr = finalize.apply(mesh);
+        lvr2::MeshBuffer<Vec> bufferCopy = *meshBufferBoostPtr.get();
+        mesh_buffer = make_shared<lvr2::MeshBuffer<Vec>>(bufferCopy);
+    }
+    else
+    {
+        // Finalize mesh (convert it to simple `MeshBuffer`)
+        lvr2::SimpleFinalizer<Vec> finalize;
+        finalize.setNormalData(vertexNormals);
 
-    // mesh_buffer = mesh.meshBuffer();
+        // Convert boost::shared_ptr to std::shared_ptr
+        auto boostSharedPtr = finalize.apply(mesh);
+        auto stdSharedPtr = std::shared_ptr<lvr2::MeshBuffer<Vec>>(
+            boostSharedPtr.get(),
+            [boostSharedPtr](lvr2::MeshBuffer<Vec>*) mutable {
+                boostSharedPtr.reset();
+            }
+        );
+
+        mesh_buffer = stdSharedPtr;
+    }
 
     ROS_INFO_STREAM("Reconstruction finished!");
     return true;
 }
+
+/**********************************************************************************************************************/
+// Utility & Main
 
 float *Reconstruction::getStatsCoeffs(std::string filename) const
 {
@@ -475,14 +595,17 @@ float *Reconstruction::getStatsCoeffs(std::string filename) const
 }
 
 
-} /* namespace lvr_ros */
+} // namespace lvr_ros
 
 
 int main(int argc, char **args)
 {
     ros::init(argc, args, "reconstruction");
     lvr_ros::Reconstruction reconstruction;
-    ros::spin();
+    // ros::spin();
 
+
+    ros::MultiThreadedSpinner spinner(4); // Use 4 threads
+    spinner.spin(); // spin() will not return until the node has been shutdown
     return 0;
 }

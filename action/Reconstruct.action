@@ -1,4 +1,11 @@
-sensor_msgs/PointCloud2 point_cloud
+# Reconstruction action
+# The result is a TriangleMesh (old, deprecated) and a UUID string that identifies an instance of a mesh reconstruction
+#
+# The caller of this action should use the UUID to call the services that this node offers to receive the corresponding
+# mesh geometry and attributes. For migration from one message format to another, this action will offer both versions.
+# Make sure to migrate to the new message format quickly before the old one gets discontinued eventually.
+
+sensor_msgs/PointCloud2 cloud
 ---
-mesh_msgs/TriangleMeshStamped mesh
+mesh_msgs/MeshGeometryStamped mesh
 ---

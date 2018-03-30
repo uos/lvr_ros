@@ -1,0 +1,59 @@
+# point operations
+kd:                   50            # LVR2
+ki:                   50            # LVR2
+kn:                   50            # LVR2
+pcm:                  "FLANN"       # LVR2
+ransac:               False         # LVR2
+recalcNormals:        False         # LVR2
+
+# mesh generation (marching cubes)
+decomposition:        "PMC"         # LVR2
+intersections:        0             # LVR2
+noExtrusion:          False         # LVR2
+voxelsize:            0.1           # LVR2
+
+# mesh optimisation
+cleanContours:        0             # LVR2
+clusterPlanes:        False
+fillHoles:            30            # LVR2
+lft:                  0.01
+mp:                   7             # LVR2
+optimizePlanes:       False         # LVR2
+planeIterations:      3             # LVR2
+smallRegionThreshold: 10            # LVR2
+pnt:                  0.85          # LVR2
+rda:                  0             # LVR2
+reductionRatio:       0.0
+retesselate:          False
+
+# textures
+generateTextures:     False         # LVR2
+nsc:                  16
+patt:                 100
+sct:                  0.7
+sft:                  0.9
+texelSize:            0.01          # LVR2
+texMaxClusterSize:    0             # LVR2
+texMinClusterSize:    100           # LVR2
+tp:                   ""
+
+## texture matching
+textureAnalysis:      False
+colt:                 3.4028234663852886e+38
+feat:                 3.4028234663852886e+38
+stat:                 3.4028234663852886e+38
+cro:                  False
+ct:                   50
+nccv:                 64
+co:                   ""
+
+# opencl
+useGPU:               True          # LVR2
+flipx:                -1000000      # LVR2
+flipy:                -1000000      # LVR2
+flipz:                -1000000      # LVR2
+
+# general
+classifier:           "PlaneSimpsons"
+threads:              8                 # LVR2
+vcfp:                 False

@@ -37,6 +37,9 @@
 
 #include <lvr2/geometry/BaseVector.hpp>
 #include <lvr2/io/PointBuffer.hpp>
+#include <lvr2/io/MeshBuffer.hpp>
+#include <lvr2/geometry/BaseMesh.hpp>
+#include <lvr2/attrmaps/AttrMaps.hpp>
 
 #include <lvr/io/Model.hpp>
 #include <lvr/io/MeshBuffer.hpp>
@@ -50,6 +53,7 @@
 
 #include <std_msgs/String.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/fill_image.h>
 
 #include <mesh_msgs/Cluster.h>
 #include <mesh_msgs/Material.h>
@@ -59,6 +63,15 @@
 #include <mesh_msgs/TriangleIndices.h>
 #include <mesh_msgs/TriangleMesh.h>
 #include <mesh_msgs/TriangleMeshStamped.h>
+
+#include <mesh_msgs/MeshGeometry.h>
+#include <mesh_msgs/MeshGeometryStamped.h>
+#include <mesh_msgs/MeshMaterialsStamped.h>
+#include <mesh_msgs/MeshVertexColors.h>
+#include <mesh_msgs/MeshVertexColorsStamped.h>
+#include <mesh_msgs/VertexTexCoords.h>
+#include <mesh_msgs/Material.h>
+#include <mesh_msgs/Texture.h>
 
 #include <sensor_msgs/point_cloud2_iterator.h>
 
@@ -82,6 +95,22 @@ struct MaterialGroup
 typedef std::vector <boost::shared_ptr<MaterialGroup>> GroupVector;
 typedef boost::shared_ptr <MaterialGroup> MaterialGroupPtr;
 
+
+bool fromMeshBufferToMeshGeometryMessage(
+    const lvr2::MeshBufferPtr<Vec>& buffer,
+    mesh_msgs::MeshGeometry& mesh_geometry
+);
+
+/// Convert lvr2::MeshBuffer to various messages for services
+bool fromMeshBufferToMeshMessages(
+    const lvr2::MeshBufferPtr<Vec>& buffer,
+    mesh_msgs::MeshGeometry& mesh_geometry,
+    mesh_msgs::MeshMaterials& mesh_materials,
+    mesh_msgs::MeshVertexColors& mesh_vertex_colors,
+    boost::optional<std::vector<mesh_msgs::Texture>&> texture_cache,
+    std::string mesh_uuid
+);
+
 /**
  * @brief Convert lvr::MeshBuffer to mesh_msgs::TriangleMesh
  * @param buffer to be read
@@ -96,6 +125,36 @@ bool fromMeshBufferToTriangleMesh(
 bool fromMeshBufferToTriangleMesh(
     lvr::MeshBuffer& buffer,
     mesh_msgs::TriangleMesh& message
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
+    lvr2::MeshBuffer<Vec>& buffer
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    lvr2::MeshBufferPtr<Vec>& buffer_ptr
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
+    lvr2::MeshBuffer<Vec>& buffer
+);
+
+bool fromMeshGeometryToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    lvr2::MeshBuffer<Vec>& buffer
 );
 
 /**
@@ -154,44 +213,80 @@ bool readTriangleMesh(mesh_msgs::TriangleMesh& mesh, string path);
 bool writeTriangleMesh(mesh_msgs::TriangleMesh& mesh, string path);
 
 /**
- * @brief Writes inensity values as rainbow colors for the triangle colors
+ * @brief Writes intensity values as rainbow colors for the triangle colors
  *
- * @param intensity	Intensity values
- * @param mesh		ROS-TriangleMeshGeometryMessage
+ * @param intensity Intensity values as std::vector<float>
+ * @param mesh      ROS-TriangleMeshGeometryMessage
  */
-void intensityToTriangleRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh);
+void intensityToTriangleRainbowColors(
+    const std::vector<float>& intensity,
+    mesh_msgs::TriangleMesh& mesh);
 
 /**
- * @brief Writes inensity values as rainbow colors for the triangle colors
+ * @brief Writes intensity values as rainbow colors for the triangle colors
  *
- * @param intensity	Intensity values
- * @param mesh		ROS-TriangleMeshGeometryMessage
- * @param min			The minimal value
- * @param max			The maximal value
+ * @param intensity Intensity values
+ * @param mesh      ROS-TriangleMeshGeometryMessage
+ * @param min       The minimal value
+ * @param max       The maximal value
  */
-void intensityToTriangleRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh, float min,
-                                      float max);
+void intensityToTriangleRainbowColors(
+    const std::vector<float>& intensity,
+    mesh_msgs::TriangleMesh& mesh,
+    float min,
+    float max
+);
 
 /**
- * @brief Writes inensity values as rainbow colors for the vertex colors
+ * @brief Writes intensity values as rainbow colors for the vertex colors
  *
- * @param intensity	Intensity values
- * @param mesh		ROS-TriangleMeshGeometryMessage
- * @param min			The minimal value
- * @param max			The maximla value
+ * @param intensity Intensity values as std::vector<float>
+ * @param mesh      ROS-TriangleMeshGeometryMessage
+ * @param min       The minimal value
+ * @param max       The maximal value
  */
-void intensityToVertexRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh, float min,
-                                    float max);
+void intensityToVertexRainbowColors(
+    const std::vector<float>& intensity,
+    mesh_msgs::TriangleMesh& mesh,
+    float min,
+    float max
+);
 
 /**
- * @brief Writes inensity values as rainbow colors for the vertex colors
+ * @brief Writes intensity values as rainbow colors for the vertex colors
  *
- * @param intensity	Intensity values
- * @param mesh		ROS-TriangleMeshGeometryMessage
+ * @param intensity Intensity values as DenseVertexMap<float>
+ * @param mesh      ROS-TriangleMeshGeometryMessage
+ * @param min       The minimal value
+ * @param max       The maximal value
+ */
+void intensityToVertexRainbowColors(
+    const lvr2::DenseVertexMap<float>& intensity,
+    mesh_msgs::TriangleMesh& mesh,
+    float min,
+    float max
+);
+
+/**
+ * @brief Writes intensity values as rainbow colors for the vertex colors
+ *
+ * @param intensity Intensity values
+ * @param mesh      ROS-TriangleMeshGeometryMessage
  */
 void intensityToVertexRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh);
 
 bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBuffer& buffer);
+
+/**
+ * @brief Convert mesh_msgs::MeshGeometry to lvr2::MeshBuffer
+ * @param message to be read
+ * @param buffer to be returned
+ * @return bool success status
+ */
+bool fromMeshGeometryMessageToMeshBuffer(
+    const mesh_msgs::MeshGeometry& mesh_geometry,
+    const lvr2::MeshBufferPtr<Vec>& buffer
+);
 
 } // end namespace
 

@@ -1,0 +1,7 @@
+sensor_msgs/PointCloud2 cloud
+float64[] rP    # must have 3 elements
+float64[] rPT   # must have 3 elements
+---
+bool success
+---
+int32 progress
