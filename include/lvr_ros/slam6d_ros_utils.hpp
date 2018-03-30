@@ -1438,34 +1438,55 @@ inline std::string trim(const std::string& source)
 *******************************************************************************/
 
 /**
+ * @brief Build a string ready for a .pose file for slam6d
+ *
+ * @param rP translation vector, obtained via @c getTransform
+ * @param rPT rotation vector, obtained via @c getTransform
+ *
+ * @return Pose string (with terminating newline)
+ */
+static std::string transform2pose(const std::vector<double> rP, const std::vector<double> rPT)
+{
+    std::stringstream ss;
+    ss << rP[0] << " " << rP[1] << " " << rP[2] << endl <<
+        deg(rPT[0]) << " " << deg(rPT[1]) << " " << deg(rPT[2]) << endl;
+    return ss.str();
+}
+
+#include <tf/transform_listener.h>
+/**
  * @brief Obtain the transformation from one frame to another in a form that can
  * be read by slam6d. One frame is assumed to be the global frame, the other one
  * the frame from which values should be transformed. The resulting transform is
  * hence the pose of the object whose frame is fixed_framed.
  *
- * @param[out] t Output pose, component 1
- * @param[out] ti Output pose, component 2
- * @param[out] rP Output pose, component 3
- * @param[out] rPT Output pose, component 4
+ * @param[out] rP Output pose, component 1 (translation vector)
+ * @param[out] rPT Output pose, component 2 (euler rotation angles)
  * @param listener Listener to query for tf transforms
  * @param time timestamp to query for
  * @param fixed_frame In plutogo setup, the scanner frame relative to which all
  *                    point clouds are given
  * @param global_frame Usually the robot frame (base_link or whatever)
+ * @see transform2pose()
  *
  * @return Success or failure
  */
-bool getTransform(double *t, double *ti, double *rP, double *rPT,
-        tf::TransformListener& listener, ros::Time time,
+static bool getTransform(std::vector<double>& rP, std::vector<double>& rPT,
+        const tf::TransformListener& listener, const ros::Time time,
         const std::string fixed_frame="riegl_meas_origin",
         const std::string global_frame="odom_combined"
 )
 {
+    // I'm not sure what format 3dtk uses, but this code, taken from MUFFIN,
+    // performs the appropriate lookup and conversion
     using namespace std;
     tf::StampedTransform transform;
 
+    rP.resize(3);
+    rPT.resize(3);
+
     string error_msg;
-    bool success = listener.waitForTransform(global_frame, fixed_frame, time,
+    const bool success = listener.waitForTransform(global_frame, fixed_frame, time,
             ros::Duration(3.0), ros::Duration(0.01), &error_msg);
 
     if (!success)
@@ -1477,9 +1498,9 @@ bool getTransform(double *t, double *ti, double *rP, double *rPT,
     listener.lookupTransform(global_frame, fixed_frame, time, transform);
 
     double mat[9];
-    double x = transform.getOrigin().getX() * 100;
-    double y = transform.getOrigin().getY() * 100;
-    double z = transform.getOrigin().getZ() * 100;
+    const double x = transform.getOrigin().getX() * 100;
+    const double y = transform.getOrigin().getY() * 100;
+    const double z = transform.getOrigin().getZ() * 100;
     mat[0] = transform.getBasis().getRow(0).getX();
     mat[1] = transform.getBasis().getRow(0).getY();
     mat[2] = transform.getBasis().getRow(0).getZ();
@@ -1492,6 +1513,7 @@ bool getTransform(double *t, double *ti, double *rP, double *rPT,
     mat[7] = transform.getBasis().getRow(2).getY();
     mat[8] = transform.getBasis().getRow(2).getZ();
 
+    double t[16];
     t[0] = mat[4];
     t[1] = -mat[7];
     t[2] = -mat[1];
@@ -1512,11 +1534,17 @@ bool getTransform(double *t, double *ti, double *rP, double *rPT,
     t[13] = z;
     t[14] = x;
     t[15] = 1;
-    M4inv(t, ti);
-    Matrix4ToEuler(t, rPT, rP);
+    Matrix4ToEuler(t, rPT.data(), rP.data());
 
     return true;
 }
+
+#include <pcl/point_cloud.h>
+#include <pcl_definitions/types/types.hpp>
+#include <pcl_definitions/utils.hpp>
+#include <pcl_ros/transforms.h>
+#include <pcl/common/transforms.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 /**
  * @brief Perform coordinate transform from ROS/PCL to 3DTK
@@ -1541,4 +1569,3 @@ static pcl::PointCloud<RieglPoint>::Ptr convert_coords_ros_3dtk(
 
 
 #endif // __GLOBALS_ICC__
-

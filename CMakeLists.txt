@@ -155,14 +155,31 @@ target_link_libraries(${PROJECT_NAME}_hdf5_to_msg
   )
 
 
-add_dependencies(${PROJECT_NAME}_remote_reconstruction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
-add_dependencies(${PROJECT_NAME}_reconstruction
-        ${lvr_ros_EXPORTED_TARGETS}
-        ${catkin_EXPORTED_TARGETS}
-        ${PROJECT_NAME}_gencfg
+add_dependencies(${PROJECT_NAME}_remote_reconstruction
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  ${PROJECT_NAME}_gencpp
 )
-add_dependencies(${PROJECT_NAME}_conversions ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
-add_dependencies(${PROJECT_NAME}_debug ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}_remote_reconstruction_client
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  ${PROJECT_NAME}_gencpp
+  )
+add_dependencies(${PROJECT_NAME}_reconstruction
+  ${lvr_ros_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  ${PROJECT_NAME}_gencpp
+)
+add_dependencies(${PROJECT_NAME}_conversions
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  ${PROJECT_NAME}_gencpp
+)
+add_dependencies(${PROJECT_NAME}_debug
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencpp
+)
 
 install(
   DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})

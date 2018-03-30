@@ -3,11 +3,15 @@
 #include <tf/transform_listener.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <thread>
-#include <mbf_utility/navigation_utility.h>
+#include <cstring>
 
-#include "lvr_ros/SendCloudAction.h"
-#include "lvr_ros/StartReconstructionAction.h"
-#include "lvr_ros/StopReconstructionAction.h"
+#include <tf/transform_listener.h>
+#include <lvr_ros/slam6d_ros_utils.hpp>
+
+
+#include <lvr_ros/SendCloudAction.h>
+#include <lvr_ros/StartReconstructionAction.h>
+#include <lvr_ros/StopReconstructionAction.h>
 
 using namespace lvr_ros;
 
@@ -25,6 +29,7 @@ class CloudClient
         StopReconstructClient client_stop;
         int n_clouds;
         int max_clouds;
+        tf::TransformListener transform_listener;
 
         void sendStop()
         {
@@ -66,8 +71,12 @@ class CloudClient
             SendCloudGoal goal;
             goal.cloud = *cloud;
 
-            const std::string robot_frame = "riegl_meas_origin";
-            const std::string global_frame = "odom_combined";
+            std::vector<double> rP, rPT;
+            bool success = getTransform(rP, rPT, transform_listener,
+                    ros::Time::now(), "riegl_meas_origin", "odom_combined");
+            goal.rP = rP;
+            goal.rPT = rPT;
+
             client_send.sendGoal(goal);
 
             ROS_INFO_STREAM("Sending cloud...");
@@ -93,7 +102,8 @@ class CloudClient
             client_send("/send"),
             client_reconstruct("/reconstruct"),
             client_stop("/stop"),
-            n_clouds(0)
+            n_clouds(0),
+            transform_listener(ros::Duration(60.0))
     {
         cloud_sub = nh.subscribe<sensor_msgs::PointCloud2>("/riegl_cloud", 5,
                 &CloudClient::pointCloudCallback, this);
