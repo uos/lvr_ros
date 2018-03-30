@@ -15,6 +15,7 @@ set(PACKAGE_DEPENDENCIES
   sensor_msgs
   geometry_msgs
   hyperspectral_calibration
+  label_manager
   tf
   pcl_ros
   pcl_definitions
@@ -137,6 +138,22 @@ target_link_libraries(${PROJECT_NAME}_debug
     ${PCL_LIBRARIES}
     ${PROJECT_NAME}_conversions
 )
+
+# HDF5 to message executable
+# link libraries
+find_package(HDF5 REQUIRED COMPONENTS C CXX HL)
+include_directories(${HDF5_INCLUDE_DIRS})
+link_directories(${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
+# create executable
+add_executable(${PROJECT_NAME}_hdf5_to_msg src/hdf5_to_msg.cpp)
+target_link_libraries(${PROJECT_NAME}_hdf5_to_msg
+    ${catkin_LIBRARIES}
+    ${LVR_LIBRARIES}
+    ${PCL_LIBRARIES}
+    ${HDF5_LIBRARIES}
+    ${PROJECT_NAME}_conversions
+  )
+
 
 add_dependencies(${PROJECT_NAME}_remote_reconstruction
   ${catkin_EXPORTED_TARGETS}
