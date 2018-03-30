@@ -368,7 +368,7 @@ bool hdf5_to_msg::service_getTexture(
         texture.height,
         texture.width,
         texture.width * 3, // step size
-        texture.data
+        texture.data.data()
     );
 
     res.texture.image = image;
