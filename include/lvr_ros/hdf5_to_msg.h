@@ -51,6 +51,9 @@
 // boost
 #include <boost/algorithm/string.hpp>
 
+// std
+#include <string>
+
 namespace lvr_ros
 {
 
