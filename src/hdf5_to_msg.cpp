@@ -358,24 +358,31 @@ bool hdf5_to_msg::service_getTexture(
     ROS_INFO("Get texture");
     lvr2::PlutoMapIO pmio(inputFile);
 
-    auto texture = pmio.getTextures()[req.texture_index];
-    res.texture.texture_index = req.texture_index;
-    res.texture.uuid = mesh_uuid;
-    sensor_msgs::Image image;
-    sensor_msgs::fillImage( // TODO: only RGB, breaks when using other color channels
-        image,
-        "rgb8",
-        texture.height,
-        texture.width,
-        texture.width * 3, // step size
-        texture.data.data()
-    );
+    for (auto texture : pmio.getTextures())
+    {
+        if (std::stoi(texture.name) == req.texture_index)
+        {
+            res.texture.texture_index = req.texture_index;
+            res.texture.uuid = mesh_uuid;
+            sensor_msgs::Image image;
+            sensor_msgs::fillImage( // TODO: only RGB, breaks when using other color channels
+                image,
+                "rgb8",
+                texture.height,
+                texture.width,
+                texture.width * 3, // step size
+                texture.data.data()
+            );
 
-    res.texture.image = image;
+            res.texture.image = image;
 
-    ROS_INFO("Done");
+            ROS_INFO("Done");
 
-    return true;
+            return true;    
+        }
+    }
+
+    return false;    
 }
 
 bool hdf5_to_msg::service_getLabeledClusters(
