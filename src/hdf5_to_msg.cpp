@@ -378,7 +378,7 @@ bool hdf5_to_msg::service_getTexture(
 
             ROS_INFO("Done");
 
-            return true;    
+            return true;
         }
     }
 
