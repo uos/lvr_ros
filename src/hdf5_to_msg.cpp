@@ -382,7 +382,7 @@ bool hdf5_to_msg::service_getTexture(
         }
     }
 
-    return false;    
+    return false;
 }
 
 bool hdf5_to_msg::service_getLabeledClusters(
