@@ -14,11 +14,8 @@ set(PACKAGE_DEPENDENCIES
   roscpp
   sensor_msgs
   geometry_msgs
-  hyperspectral_calibration
   label_manager
   tf
-  pcl_ros
-  pcl_definitions
 )
 
 find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})
@@ -32,9 +29,6 @@ add_action_files(
   action
   FILES
   Reconstruct.action
-  SendCloud.action
-  StartReconstruction.action
-  StopReconstruction.action
 )
 
 find_path(OPENGL_INC gl.h /usr/include/GL)
@@ -105,26 +99,6 @@ target_link_libraries(${PROJECT_NAME}_reconstruction
     ${PCL_LIBRARIES}
 )
 
-add_executable(${PROJECT_NAME}_remote_reconstruction_client
-    src/remote_reconstruction_client.cpp
-)
-
-add_executable(${PROJECT_NAME}_remote_reconstruction
-  src/colors.cpp
-  src/conversions.cpp
-  src/remote_reconstruction.cpp
-  src/FileObserver.cpp
-)
-target_link_libraries(${PROJECT_NAME}_remote_reconstruction
-    ${catkin_LIBRARIES}
-    ${LVR_LIBRARIES}
-    ${PCL_LIBRARIES}
-)
-
-target_link_libraries(${PROJECT_NAME}_remote_reconstruction_client
-    ${catkin_LIBRARIES}
-    ${PCL_LIBRARIES}
-)
 if(OPENCL_FOUND)
     target_compile_definitions(${PROJECT_NAME}_reconstruction PRIVATE OPENCL_FOUND=1)
 endif()
@@ -144,33 +118,7 @@ target_link_libraries(${PROJECT_NAME}_debug
 find_package(HDF5 REQUIRED COMPONENTS C CXX HL)
 include_directories(${HDF5_INCLUDE_DIRS})
 link_directories(${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
-# create executable
-add_executable(${PROJECT_NAME}_hdf5_to_msg src/hdf5_to_msg.cpp)
-target_link_libraries(${PROJECT_NAME}_hdf5_to_msg
-    ${catkin_LIBRARIES}
-    ${LVR_LIBRARIES}
-    ${PCL_LIBRARIES}
-    ${HDF5_LIBRARIES}
-    ${PROJECT_NAME}_conversions
-  )
 
-
-add_dependencies(${PROJECT_NAME}_remote_reconstruction
-  ${catkin_EXPORTED_TARGETS}
-  ${PROJECT_NAME}_gencfg
-  ${PROJECT_NAME}_gencpp
-)
-add_dependencies(${PROJECT_NAME}_remote_reconstruction_client
-  ${catkin_EXPORTED_TARGETS}
-  ${PROJECT_NAME}_gencfg
-  ${PROJECT_NAME}_gencpp
-  )
-add_dependencies(${PROJECT_NAME}_reconstruction
-  ${lvr_ros_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-  ${PROJECT_NAME}_gencfg
-  ${PROJECT_NAME}_gencpp
-)
 add_dependencies(${PROJECT_NAME}_conversions
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg

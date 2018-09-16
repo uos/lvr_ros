@@ -58,8 +58,6 @@
 #include <mesh_msgs/Cluster.h>
 #include <mesh_msgs/Material.h>
 #include <mesh_msgs/PolygonIndices.h>
-#include <mesh_msgs/PolygonMesh.h>
-#include <mesh_msgs/PolygonMeshStamped.h>
 #include <mesh_msgs/TriangleIndices.h>
 #include <mesh_msgs/TriangleMesh.h>
 #include <mesh_msgs/TriangleMeshStamped.h>
@@ -166,11 +164,6 @@ bool fromMeshGeometryToMeshBuffer(
 bool fromTriangleMeshToMeshBuffer(
     const mesh_msgs::TriangleMesh& mesh,
     lvr::MeshBuffer& buffer
-);
-
-bool fromPolygonMeshToTriangleMesh(
-    const mesh_msgs::PolygonMesh& polygon_mesh,
-    mesh_msgs::TriangleMesh& triangle_mesh
 );
 
 void removeDuplicates(lvr::MeshBuffer& buffer);

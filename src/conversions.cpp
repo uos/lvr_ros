@@ -409,56 +409,6 @@ bool fromTriangleMeshToMeshBuffer(
     return true;
 }
 
-bool fromPolygonMeshToTriangleMesh(
-    mesh_msgs::PolygonMesh& polygon_mesh,
-    mesh_msgs::TriangleMesh& triangle_mesh
-)
-{
-    lvr::Tesselator<lvr::Vertexf, lvr::Normalf>::init();
-    for (unsigned int i = 0; i < polygon_mesh.polygons.size(); i++)
-    {
-        vector <vector<lvr::Vertexf>> vectorBorderPoints;
-        vector <lvr::Vertexf> borderPoints;
-        for (unsigned int j = 0; j < polygon_mesh.polygons[i].vertex_indices.size(); j++)
-        {
-            geometry_msgs::Point tmp = polygon_mesh.vertices[polygon_mesh.polygons[i].vertex_indices[j]];
-            lvr::Vertexf vertex(tmp.x, tmp.y, tmp.z);
-            borderPoints.push_back(vertex);
-        }
-        vectorBorderPoints.push_back(borderPoints);
-        lvr::Tesselator<lvr::Vertexf, lvr::Normalf>::tesselate(vectorBorderPoints);
-    }
-
-    vector<float> vertices;
-    std::vector<unsigned int> indices;
-    std::vector <std::vector<lvr::Vertexf>> vectorBorderPoints;
-    lvr::Tesselator<lvr::Vertexf, lvr::Normalf>::getFinalizedTriangles(
-        vertices,
-        indices,
-        vectorBorderPoints
-    );
-    lvr::Tesselator<lvr::Vertexf, lvr::Normalf>::clear();
-
-    for (unsigned int i = 0; i < vertices.size(); i += 3)
-    {
-        geometry_msgs::Point vertex;
-        vertex.x = vertices[i];
-        vertex.y = vertices[i + 1];
-        vertex.z = vertices[i + 2];
-        triangle_mesh.vertices.push_back(vertex);
-    }
-
-    for (unsigned int i = 0; i < indices.size(); i += 3)
-    {
-        mesh_msgs::TriangleIndices triangle;
-        triangle.vertex_indices[0] = indices[i];
-        triangle.vertex_indices[1] = indices[i + 1];
-        triangle.vertex_indices[2] = indices[i + 2];
-        triangle_mesh.triangles.push_back(triangle);
-    }
-    return true;
-}
-
 bool readMeshBuffer(lvr::MeshBufferPtr& buffer, string path)
 {
     lvr::ModelFactory io_factory;
