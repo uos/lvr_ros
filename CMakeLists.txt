@@ -20,7 +20,7 @@ set(PACKAGE_DEPENDENCIES
 
 find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})
 
-find_package(LVR REQUIRED)
+find_package(LVR 2 REQUIRED)
 
 add_definitions(${LVR_DEFINITIONS})
 

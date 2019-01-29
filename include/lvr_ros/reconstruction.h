@@ -41,7 +41,7 @@
 
 #include <mesh_msgs/TriangleMesh.h>
 #include <mesh_msgs/TriangleMeshStamped.h>
-#include <mesh_msgs/Texture.h>
+#include <mesh_msgs/MeshTexture.h>
 
 #include <lvr2/geometry/BaseVector.hpp>
 #include <lvr2/io/PointBuffer.hpp>
@@ -54,8 +54,8 @@ namespace lvr_ros
 {
 
 using Vec = lvr2::BaseVector<float>;
-using PointBuffer = lvr2::PointBuffer<Vec>;
-using PointBufferPtr = lvr2::PointBufferPtr<Vec>;
+using PointBuffer = lvr2::PointBuffer;
+using PointBufferPtr = lvr2::PointBufferPtr;
 // using MeshBuffer = lvr2::MeshBuffer<Vec>;
 // using MeshBufferPtr = lvr2::MeshBufferPtr<Vec>;
 
@@ -102,7 +102,7 @@ private:
      * version of LVR_ROS will be able to generate both messages.
      */
     bool createMeshMessageFromPointCloud(const sensor_msgs::PointCloud2& cloud, mesh_msgs::TriangleMeshStamped& mesh);
-    bool createMeshBufferFromPointBuffer(PointBufferPtr& point_buffer, lvr2::MeshBufferPtr<Vec>& mesh_buffer);
+    bool createMeshBufferFromPointBuffer(PointBufferPtr& point_buffer, lvr2::MeshBufferPtr& mesh_buffer);
 
     // Utility
     float *getStatsCoeffs(std::string filename) const;
@@ -135,7 +135,7 @@ private:
     mesh_msgs::MeshMaterialsStamped cache_mesh_materials_stamped;
     mesh_msgs::MeshVertexColorsStamped cache_mesh_vertex_colors_stamped;
     std::string cache_uuid;
-    std::vector<mesh_msgs::Texture> cache_textures;
+    std::vector<mesh_msgs::MeshTexture> cache_textures;
 
 };
 

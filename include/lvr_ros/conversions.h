@@ -41,23 +41,20 @@
 #include <lvr2/geometry/BaseMesh.hpp>
 #include <lvr2/attrmaps/AttrMaps.hpp>
 
-#include <lvr/io/Model.hpp>
-#include <lvr/io/MeshBuffer.hpp>
-#include <lvr/io/PLYIO.hpp>
-#include <lvr/io/DataStruct.hpp>
-#include <lvr/io/ModelFactory.hpp>
+#include <lvr2/io/Model.hpp>
+#include <lvr2/io/PLYIO.hpp>
+#include <lvr2/io/DataStruct.hpp>
+#include <lvr2/io/ModelFactory.hpp>
 
-#include <lvr/texture/Texture.hpp>
-#include <lvr/geometry/Vertex.hpp>
-#include <lvr/geometry/HalfEdgeMesh.hpp>
+#include <lvr2/texture/Texture.hpp>
+#include <lvr2/geometry/HalfEdgeMesh.hpp>
 
 #include <std_msgs/String.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/fill_image.h>
 
-#include <mesh_msgs/Cluster.h>
-#include <mesh_msgs/Material.h>
-#include <mesh_msgs/PolygonIndices.h>
+#include <mesh_msgs/MeshFaceCluster.h>
+#include <mesh_msgs/MeshMaterial.h>
 #include <mesh_msgs/TriangleIndices.h>
 #include <mesh_msgs/TriangleMesh.h>
 #include <mesh_msgs/TriangleMeshStamped.h>
@@ -67,9 +64,9 @@
 #include <mesh_msgs/MeshMaterialsStamped.h>
 #include <mesh_msgs/MeshVertexColors.h>
 #include <mesh_msgs/MeshVertexColorsStamped.h>
-#include <mesh_msgs/VertexTexCoords.h>
-#include <mesh_msgs/Material.h>
-#include <mesh_msgs/Texture.h>
+#include <mesh_msgs/MeshVertexTexCoords.h>
+#include <mesh_msgs/MeshMaterial.h>
+#include <mesh_msgs/MeshTexture.h>
 
 #include <sensor_msgs/point_cloud2_iterator.h>
 
@@ -78,8 +75,8 @@ namespace lvr_ros
 {
 
 using Vec = lvr2::BaseVector<float>;
-using PointBuffer = lvr2::PointBuffer<Vec>;
-using PointBufferPtr = lvr2::PointBufferPtr<Vec>;
+using PointBuffer = lvr2::PointBuffer;
+using PointBufferPtr = lvr2::PointBufferPtr;
 
 struct MaterialGroup
 {
@@ -95,17 +92,17 @@ typedef boost::shared_ptr <MaterialGroup> MaterialGroupPtr;
 
 
 bool fromMeshBufferToMeshGeometryMessage(
-    const lvr2::MeshBufferPtr<Vec>& buffer,
+    const lvr2::MeshBufferPtr& buffer,
     mesh_msgs::MeshGeometry& mesh_geometry
 );
 
 /// Convert lvr2::MeshBuffer to various messages for services
 bool fromMeshBufferToMeshMessages(
-    const lvr2::MeshBufferPtr<Vec>& buffer,
+    const lvr2::MeshBufferPtr& buffer,
     mesh_msgs::MeshGeometry& mesh_geometry,
     mesh_msgs::MeshMaterials& mesh_materials,
     mesh_msgs::MeshVertexColors& mesh_vertex_colors,
-    boost::optional<std::vector<mesh_msgs::Texture>&> texture_cache,
+    boost::optional<std::vector<mesh_msgs::MeshTexture>&> texture_cache,
     std::string mesh_uuid
 );
 
@@ -116,43 +113,43 @@ bool fromMeshBufferToMeshMessages(
  * @return bool success status
  */
 bool fromMeshBufferToTriangleMesh(
-    const lvr::MeshBufferPtr& buffer,
+    const lvr2::MeshBufferPtr& buffer,
     mesh_msgs::TriangleMesh& message
 );
 
 bool fromMeshBufferToTriangleMesh(
-    lvr::MeshBuffer& buffer,
+    lvr2::MeshBuffer& buffer,
     mesh_msgs::TriangleMesh& message
 );
 
 bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
-    lvr2::MeshBufferPtr<Vec>& buffer_ptr
+    lvr2::MeshBufferPtr& buffer_ptr
 );
 
 bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
-    lvr2::MeshBuffer<Vec>& buffer
+    lvr2::MeshBuffer& buffer
 );
 
 bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
-    lvr2::MeshBufferPtr<Vec>& buffer_ptr
+    lvr2::MeshBufferPtr& buffer_ptr
 );
 
 bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometry& mesh_geometry,
-    lvr2::MeshBufferPtr<Vec>& buffer_ptr
+    lvr2::MeshBufferPtr& buffer_ptr
 );
 
 bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
-    lvr2::MeshBuffer<Vec>& buffer
+    lvr2::MeshBuffer& buffer
 );
 
 bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometry& mesh_geometry,
-    lvr2::MeshBuffer<Vec>& buffer
+    lvr2::MeshBuffer& buffer
 );
 
 /**
@@ -163,12 +160,14 @@ bool fromMeshGeometryToMeshBuffer(
  */
 bool fromTriangleMeshToMeshBuffer(
     const mesh_msgs::TriangleMesh& mesh,
-    lvr::MeshBuffer& buffer
+    lvr2::MeshBuffer& buffer
 );
 
-void removeDuplicates(lvr::MeshBuffer& buffer);
+/* TODO
+void removeDuplicates(lvr2::MeshBuffer& buffer);
 
 void removeDuplicates(mesh_msgs::TriangleMesh& mesh);
+*/
 
 /**
  * @brief Creates a LVR-MeshBufferPointer from a file
@@ -177,7 +176,7 @@ void removeDuplicates(mesh_msgs::TriangleMesh& mesh);
  *
  * @return LVR-MeshBufferPointer
  */
-bool readMeshBuffer(lvr::MeshBufferPtr& buffer, string path);
+bool readMeshBuffer(lvr2::MeshBufferPtr& buffer, string path);
 
 /**
  * @brief Writes a LVR-MeshBufferPointer to a file
@@ -185,7 +184,7 @@ bool readMeshBuffer(lvr::MeshBufferPtr& buffer, string path);
  * @param mesh   LVR-MeshBufferPointer
  * @param path   Path to a MeshFile
  */
-bool writeMeshBuffer(lvr::MeshBufferPtr& mesh, string path);
+bool writeMeshBuffer(lvr2::MeshBufferPtr& mesh, string path);
 
 /**
  * @brief Reads a file and returns a lvr_ros/TriangleMesh
@@ -278,7 +277,7 @@ bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBu
  */
 bool fromMeshGeometryMessageToMeshBuffer(
     const mesh_msgs::MeshGeometry& mesh_geometry,
-    const lvr2::MeshBufferPtr<Vec>& buffer
+    const lvr2::MeshBufferPtr& buffer
 );
 
 } // end namespace
