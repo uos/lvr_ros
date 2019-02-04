@@ -296,6 +296,7 @@ bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
     lvr2::MeshBufferPtr& buffer_ptr)
 {
+    if(!buffer_ptr) buffer_ptr = lvr2::MeshBufferPtr(new lvr2::MeshBuffer);
     fromMeshGeometryToMeshBuffer(*mesh_geometry_ptr, *buffer_ptr);
 }
 
@@ -303,6 +304,7 @@ bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
     lvr2::MeshBufferPtr& buffer_ptr)
 {
+    if(!buffer_ptr) buffer_ptr = lvr2::MeshBufferPtr(new lvr2::MeshBuffer);
     fromMeshGeometryToMeshBuffer(*mesh_geometry_ptr, *buffer_ptr);
 }
 
@@ -317,6 +319,7 @@ bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometry& mesh_geometry,
     lvr2::MeshBufferPtr& buffer_ptr)
 {
+    if(!buffer_ptr) buffer_ptr = lvr2::MeshBufferPtr(new lvr2::MeshBuffer);
     fromMeshGeometryToMeshBuffer(mesh_geometry, *buffer_ptr);
 }
 
@@ -401,7 +404,7 @@ bool fromTriangleMeshToMeshBuffer(
     return true;
 }
 
-bool readMeshBuffer(lvr2::MeshBufferPtr& buffer, string path)
+bool readMeshBuffer(lvr2::MeshBufferPtr& buffer_ptr, string path)
 {
     lvr2::ModelFactory io_factory;
     lvr2::ModelPtr model = io_factory.readModel(path);
@@ -412,7 +415,7 @@ bool readMeshBuffer(lvr2::MeshBufferPtr& buffer, string path)
     }
     else
     {
-        buffer = model->m_mesh;
+        buffer_ptr = model->m_mesh;
         return true;
     }
 }
