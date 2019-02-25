@@ -91,6 +91,51 @@ typedef std::vector <boost::shared_ptr<MaterialGroup>> GroupVector;
 typedef boost::shared_ptr <MaterialGroup> MaterialGroupPtr;
 
 
+template<typename BaseVecT>
+const mesh_msgs::MeshGeometry toMeshGeometry(
+    lvr2::HalfEdgeMesh<BaseVecT>& hem,
+    lvr2::VertexMap<lvr2::Normal<BaseVecT>> normals = lvr2::VertexMap<lvr2::Normal<BaseVecT>>())
+{
+  mesh_msgs::MeshGeometry mesh_msg;
+  mesh_msg.vertices.reserve(hem.numVertices());
+  mesh_msg.faces.reserve(hem.numFaces());
+  mesh_msg.vertex_normals.reserve(normals.numValues());
+
+  lvr2::DenseVertexMap<size_t> new_indices;
+  new_indices.reserve(hem.numVertices());
+
+  size_t k = 0;
+  for(size_t i=0; i<hem.nextVertexIndex(); i++)
+  {
+    const lvr2::VertexHandle vH(i);
+    if(!hem.containsVertex(vH)) continue;
+    new_indices.insert(vH, k);
+    const auto& pi = hem.getVertexPosition(vH);
+    mesh_msg.vertices.push_back(geometry_msgs::Point(pi.x, pi.y, pi.z));
+  }
+
+  for(auto fH : hem.faces())
+  {
+    mesh_msgs::TriangleIndices indices;
+    auto vHs = hem.getVerticesOfFace(fH);
+    indices.vertex_indices[0] = new_indices[vHs[0]];
+    indices.vertex_indices[1] = new_indices[vHs[1]];
+    indices.vertex_indices[2] = new_indices[vHs[2]];
+    mesh_msg.faces.push_back(indices);
+  }
+  
+  for(auto vH : hem.vertices())
+  {
+    auto& n_opt = normals(vH);
+    if(n_opt)
+    {
+      const auto& n = n_opt.get();
+      mesh_msg.vertex_normals.push_back(geometry_msgs::Point(n.x, n.y, n.z));
+    }
+  }
+}
+
+
 bool fromMeshBufferToMeshGeometryMessage(
     const lvr2::MeshBufferPtr& buffer,
     mesh_msgs::MeshGeometry& mesh_geometry
