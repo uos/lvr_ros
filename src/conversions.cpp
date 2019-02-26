@@ -35,11 +35,11 @@ namespace lvr_ros
 {
 
 bool fromMeshBufferToMeshGeometryMessage(
-    const lvr2::MeshBufferPtr<Vec>& buffer,
+    const lvr2::MeshBufferPtr& buffer,
     mesh_msgs::MeshGeometry& mesh_geometry
 ){
-    unsigned int n_vertices = buffer->getVertices().size() / 3;
-    unsigned int n_faces = buffer->getFaceIndices().size() / 3;
+    size_t n_vertices = buffer->numVertices();
+    size_t n_faces = buffer->numFaces();
 
     ROS_DEBUG_STREAM("Copy vertices from MeshBuffer to MeshGeometry.");
 
@@ -52,7 +52,6 @@ bool fromMeshBufferToMeshGeometryMessage(
         mesh_geometry.vertices[i].y = buffer_vertices[i * 3 + 1];
         mesh_geometry.vertices[i].z = buffer_vertices[i * 3 + 2];
     }
-    buffer_vertices.clear();
 
     ROS_DEBUG_STREAM("Copy faces from MeshBuffer to MeshGeometry.");
 
@@ -65,27 +64,18 @@ bool fromMeshBufferToMeshGeometryMessage(
         mesh_geometry.faces[i].vertex_indices[1] = buffer_faces[i * 3 + 1];
         mesh_geometry.faces[i].vertex_indices[2] = buffer_faces[i * 3 + 2];
     }
-    buffer_faces.clear();
-
 
     // Copy vertex normals
     auto buffer_vertexnormals = buffer->getVertexNormals();
-    if(!buffer_vertexnormals.empty())
+    if(buffer->hasVertexNormals())
     {
-        if(buffer_vertexnormals.size() != n_vertices * 3)
-        {
-            ROS_FATAL_STREAM("The number of normals in the MeshBuffer differs"
-                                 "from the number of vertices! Ignoring normals!");
-        }else{
-            ROS_DEBUG_STREAM("Copy normals from MeshBuffer to MeshGeometry.");
+        ROS_DEBUG_STREAM("Copy normals from MeshBuffer to MeshGeometry.");
 
-            mesh_geometry.vertex_normals.resize(n_vertices);
-            for (unsigned int i = 0; i < n_vertices; i++) {
-                mesh_geometry.vertex_normals[i].x = buffer_vertexnormals[i * 3];
-                mesh_geometry.vertex_normals[i].y = buffer_vertexnormals[i * 3 + 1];
-                mesh_geometry.vertex_normals[i].z = buffer_vertexnormals[i * 3 + 2];
-            }
-            buffer_vertexnormals.clear();
+        mesh_geometry.vertex_normals.resize(n_vertices);
+        for (unsigned int i = 0; i < n_vertices; i++) {
+            mesh_geometry.vertex_normals[i].x = buffer_vertexnormals[i * 3];
+            mesh_geometry.vertex_normals[i].y = buffer_vertexnormals[i * 3 + 1];
+            mesh_geometry.vertex_normals[i].z = buffer_vertexnormals[i * 3 + 2];
         }
     }else{
         ROS_DEBUG_STREAM("No vertex normals given!");
@@ -97,26 +87,23 @@ bool fromMeshBufferToMeshGeometryMessage(
 }
 
 bool fromMeshBufferToMeshMessages(
-    const lvr2::MeshBufferPtr<Vec>& buffer,
+    const lvr2::MeshBufferPtr& buffer,
     mesh_msgs::MeshGeometry& mesh_geometry,
     mesh_msgs::MeshMaterials& mesh_materials,
     mesh_msgs::MeshVertexColors& mesh_vertex_colors,
-    boost::optional<std::vector<mesh_msgs::Texture>&> texture_cache,
+    boost::optional<std::vector<mesh_msgs::MeshTexture>&> texture_cache,
     std::string mesh_uuid
 )
 {
-    unsigned int n_vertices = buffer->getVertices().size() / 3;
-    unsigned int n_faces = buffer->getFaceIndices().size() / 3;
-    unsigned int n_clusters = buffer->getClusterFaceIndices().size();
-    unsigned int n_materials = buffer->getMaterials().size();
-    unsigned int n_textures = buffer->getTextures().size();
-    unsigned int n_vertex_colors = buffer->getVertexColors().size();
+    size_t n_vertices = buffer->numVertices();
+    size_t n_faces = buffer->numFaces();
 
     // copy vertices, faces and normals
     fromMeshBufferToMeshGeometryMessage(buffer, mesh_geometry);
 
+    //size_t n_clusters = buffer->; TODO Clusters?
     // Copy clusters
-    auto buffer_clusters = buffer->getClusterFaceIndices();
+    /*auto buffer_clusters = buffer->get;
     mesh_materials.clusters.resize(n_clusters);
     for (unsigned int i = 0; i < n_clusters; i++)
     {
@@ -128,13 +115,17 @@ bool fromMeshBufferToMeshMessages(
         }
     }
     buffer_clusters.clear();
+    */
+
+    size_t n_materials = buffer->getMaterials().size();
+    size_t n_textures = buffer->getTextures().size();
 
     // Copy materials
     auto buffer_materials = buffer->getMaterials();
     mesh_materials.materials.resize(n_materials);
     for (unsigned int i = 0; i < n_materials; i++)
     {
-        lvr2::Material m = buffer_materials[i];
+        const lvr2::Material& m = buffer_materials[i];
         if (m.m_color)
         {
             mesh_materials.materials[i].color.r = m.m_color.get()[0]/255.0;
@@ -162,18 +153,19 @@ bool fromMeshBufferToMeshMessages(
     }
     buffer_materials.clear();
 
-    // Copy cluster material indices
+    // Copy cluster material indices TODO Cluster Materials?
+    /*
     auto buffer_cluster_materials = buffer->getClusterMaterialIndices();
-    mesh_materials.cluster_materials.resize(n_clusters);
+    mesh_materials.materials.resize(n_clusters);
     for (unsigned int i = 0; i < n_clusters; i++)
     {
         mesh_materials.cluster_materials[i] = buffer_cluster_materials[i];
     }
     buffer_cluster_materials.clear();
+    */
 
     // Copy vertex tex coords
-    auto buffer_texcoords = buffer->getVertexTextureCoordinates();
-    if (buffer_texcoords.size() > 0)
+    auto buffer_texcoords = buffer->getTextureCoordinates();
     {
         mesh_materials.vertex_tex_coords.resize(n_vertices);
 
@@ -182,24 +174,21 @@ bool fromMeshBufferToMeshMessages(
             mesh_materials.vertex_tex_coords[i].u = buffer_texcoords[i * 3];
             mesh_materials.vertex_tex_coords[i].v = buffer_texcoords[i * 3 + 1];
         }
-
-        buffer_texcoords.clear();
     }
 
     // Copy vertex colors
-    if (n_vertex_colors > 0)
+    if (buffer->hasVertexColors())
     {
-        auto buffer_vertex_colors = buffer->getVertexColors();
+        unsigned int color_channels = 3;
+        auto buffer_vertex_colors = buffer->getVertexColors(color_channels);
         mesh_vertex_colors.vertex_colors.resize(n_vertices);
-        for (unsigned int i = 0; i < n_vertices; i++)
+        for (size_t i = 0; i < n_vertices; i++)
         {
-            float r = buffer_vertex_colors[i * 3]/255.0;
-            mesh_vertex_colors.vertex_colors[i].r = r;
+            mesh_vertex_colors.vertex_colors[i].r = buffer_vertex_colors[i * 3 + 0]/255.0;
             mesh_vertex_colors.vertex_colors[i].g = buffer_vertex_colors[i * 3 + 1]/255.0;
             mesh_vertex_colors.vertex_colors[i].b = buffer_vertex_colors[i * 3 + 2]/255.0;
             mesh_vertex_colors.vertex_colors[i].a = 1.0;
         }
-        buffer_vertex_colors.clear();
     }
 
     // If texture cache is available, cache textures in given vector
@@ -218,7 +207,7 @@ bool fromMeshBufferToMeshMessages(
                 buffer_textures[i].m_width * 3, // step size
                 buffer_textures[i].m_data
             );
-            mesh_msgs::Texture texture;
+            mesh_msgs::MeshTexture texture;
             texture.uuid = mesh_uuid;
             texture.texture_index = i;
             texture.image = image;
@@ -231,58 +220,58 @@ bool fromMeshBufferToMeshMessages(
 }
 
 bool fromMeshBufferToTriangleMesh(
-    const lvr::MeshBufferPtr& buffer,
+    const lvr2::MeshBufferPtr& buffer,
     mesh_msgs::TriangleMesh& mesh)
 {
     return fromMeshBufferToTriangleMesh(*buffer, mesh);
 }
 
 bool fromMeshBufferToTriangleMesh(
-    lvr::MeshBuffer& buffer,
+    lvr2::MeshBuffer& buffer,
     mesh_msgs::TriangleMesh& mesh)
 {
-    size_t numVertices = 0;
-    size_t numFaces = 0;
-    size_t numNormals = 0;
-    lvr::coord3fArr verticesArray = buffer.getIndexedVertexArray(numVertices);
-    lvr::coord3fArr normalsArray = buffer.getIndexedVertexNormalArray(numNormals);
-    lvr::uintArr facesArray = buffer.getFaceArray(numFaces);
+    size_t numVertices = buffer.numVertices();
+    size_t numFaces = buffer.numFaces();
 
     ROS_DEBUG_STREAM("number vertices: " << numVertices);
     ROS_DEBUG_STREAM("number triangles: " << numFaces);
-    ROS_DEBUG_STREAM("number normals: " << numNormals);
 
+    auto vertices = buffer.getVertices();
+    auto faces = buffer.getFaceIndices();
 
     mesh.vertices.resize(numVertices);
-    mesh.vertex_normals.resize(numNormals);
     mesh.triangles.resize(numFaces);
 
-    if (numVertices && numFaces)
+    // copy vertices
+    for (size_t i = 0; i < numVertices; i++)
     {
-        // copy vertices
-        for (unsigned int i = 0; i < numVertices; i++)
-        {
-            mesh.vertices[i].x = verticesArray[i].x;
-            mesh.vertices[i].y = verticesArray[i].y;
-            mesh.vertices[i].z = verticesArray[i].z;
-        }
+        mesh.vertices[i].x = vertices[i * 3 + 0];
+        mesh.vertices[i].y = vertices[i * 3 + 1];
+        mesh.vertices[i].z = vertices[i * 3 + 2];
+    }
 
-        // copy triangles
-        for (unsigned int i = 0; i < numFaces; i++)
-        {
-            mesh.triangles[i].vertex_indices[0] = facesArray[i * 3];
-            mesh.triangles[i].vertex_indices[1] = facesArray[i * 3 + 1];
-            mesh.triangles[i].vertex_indices[2] = facesArray[i * 3 + 2];
-        }
+    // copy triangles
+    for (size_t i = 0; i < numFaces; i++)
+    {
+        mesh.triangles[i].vertex_indices[0] = faces[i * 3 + 0];
+        mesh.triangles[i].vertex_indices[1] = faces[i * 3 + 1];
+        mesh.triangles[i].vertex_indices[2] = faces[i * 3 + 2];
+    }
+
+    // copy normals if available
+    if(buffer.hasVertexNormals())
+    {
+        mesh.vertex_normals.resize(numVertices);
+        auto normals = buffer.getVertexNormals();
 
         // copy point normals
-        for (unsigned int i = 0; i < numNormals; i++)
+        for (size_t i = 0; i < numVertices; i++)
         {
-            mesh.vertex_normals[i].x = normalsArray[i].x;
-            mesh.vertex_normals[i].y = normalsArray[i].y;
-            mesh.vertex_normals[i].z = normalsArray[i].z;
+            mesh.vertex_normals[i].x = normals[i * 3 + 0];
+            mesh.vertex_normals[i].y = normals[i * 3 + 1];
+            mesh.vertex_normals[i].z = normals[i * 3 + 2];
         }
-
+    }
         /*
               optional:
               geometry_msgs/Point[] vertex_normals
@@ -290,179 +279,135 @@ bool fromMeshBufferToTriangleMesh(
               geometry_msgs/Point[] vertex_texture_coords
               mesh_msgs/Material[] face_materials
               sensor_msgs/Image[] textures
-              mesh_msgs/Cluster[] clusters
+              mesh_msgs/MeshFaceCluster[] clusters
         */
 
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    return true;
 }
 
 bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
-    lvr2::MeshBuffer<Vec>& buffer)
+    lvr2::MeshBuffer& buffer)
 {
     fromMeshGeometryToMeshBuffer(*mesh_geometry_ptr, buffer);
 }
 
 bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometryConstPtr& mesh_geometry_ptr,
-    lvr2::MeshBufferPtr<Vec>& buffer_ptr)
+    lvr2::MeshBufferPtr& buffer_ptr)
 {
+    if(!buffer_ptr) buffer_ptr = lvr2::MeshBufferPtr(new lvr2::MeshBuffer);
     fromMeshGeometryToMeshBuffer(*mesh_geometry_ptr, *buffer_ptr);
 }
 
 bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
-    lvr2::MeshBufferPtr<Vec>& buffer_ptr)
+    lvr2::MeshBufferPtr& buffer_ptr)
 {
+    if(!buffer_ptr) buffer_ptr = lvr2::MeshBufferPtr(new lvr2::MeshBuffer);
     fromMeshGeometryToMeshBuffer(*mesh_geometry_ptr, *buffer_ptr);
 }
 
 bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometryPtr& mesh_geometry_ptr,
-    lvr2::MeshBuffer<Vec>& buffer)
+    lvr2::MeshBuffer& buffer)
 {
     fromMeshGeometryToMeshBuffer(*mesh_geometry_ptr, buffer);
 }
 
 bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometry& mesh_geometry,
-    lvr2::MeshBufferPtr<Vec>& buffer_ptr)
+    lvr2::MeshBufferPtr& buffer_ptr)
 {
+    if(!buffer_ptr) buffer_ptr = lvr2::MeshBufferPtr(new lvr2::MeshBuffer);
     fromMeshGeometryToMeshBuffer(mesh_geometry, *buffer_ptr);
 }
 
 bool fromMeshGeometryToMeshBuffer(
     const mesh_msgs::MeshGeometry& mesh_geometry,
-    lvr2::MeshBuffer<Vec>& buffer)
+    lvr2::MeshBuffer& buffer)
 {
-    std::vector<float> vertices;
-    vertices.reserve(mesh_geometry.vertices.size() * 3);
-    for(const geometry_msgs::Point& p : mesh_geometry.vertices)
-    {
-        vertices.push_back(p.x);
-        vertices.push_back(p.y);
-        vertices.push_back(p.z);
-    }
-    buffer.setVertices(vertices);
 
-    std::vector<unsigned int> faces;
-    faces.reserve(mesh_geometry.faces.size() * 3);
-    for(const mesh_msgs::TriangleIndices& t : mesh_geometry.faces)
+    const size_t numVertices = mesh_geometry.vertices.size();
+    lvr2::floatArr vertices( new float[ numVertices * 3 ] );
+    const auto& mg_vertices = mesh_geometry.vertices;
+    for(size_t i; i<numVertices; i++)
     {
-        faces.push_back(t.vertex_indices[0]);
-        faces.push_back(t.vertex_indices[1]);
-        faces.push_back(t.vertex_indices[2]);
+        vertices[ i * 3 + 0 ] = static_cast<float>(mg_vertices[i].x);
+        vertices[ i * 3 + 1 ] = static_cast<float>(mg_vertices[i].y);
+        vertices[ i * 3 + 2 ] = static_cast<float>(mg_vertices[i].z);
     }
-    buffer.setFaceIndices(faces);
+    buffer.setVertices(vertices, numVertices);
 
-    std::vector<float> normals;
-    normals.reserve(mesh_geometry.vertex_normals.size() * 3);
-    for(const geometry_msgs::Point& n : mesh_geometry.vertex_normals)
+    const size_t numFaces = mesh_geometry.faces.size();
+    lvr2::indexArray faces( new unsigned int[ numVertices * 3 ] );
+    const auto& mg_faces = mesh_geometry.faces;
+    for(size_t i; i<numFaces; i++)
     {
-        normals.push_back(n.x);
-        normals.push_back(n.y);
-        normals.push_back(n.z);
+        faces[ i * 3 + 0 ] = mg_faces[i].vertex_indices[0];
+        faces[ i * 3 + 1 ] = mg_faces[i].vertex_indices[1];
+        faces[ i * 3 + 2 ] = mg_faces[i].vertex_indices[2];
+    }
+    buffer.setFaceIndices(faces, numFaces);
+
+    const size_t numNormals = mesh_geometry.vertex_normals.size();
+    lvr2::floatArr normals( new float[ numNormals * 3 ] );
+    const auto& mg_normals = mesh_geometry.vertex_normals;
+    for(size_t i; i<numNormals; i++)
+    {
+        normals[ i * 3 + 0 ] = static_cast<float>(mg_normals[i].x);
+        normals[ i * 3 + 1 ] = static_cast<float>(mg_normals[i].y);
+        normals[ i * 3 + 2 ] = static_cast<float>(mg_normals[i].z);
     }
     buffer.setVertexNormals(normals);
+
     return true;
 }
 
 bool fromTriangleMeshToMeshBuffer(
     const mesh_msgs::TriangleMesh& mesh,
-    lvr::MeshBuffer& buffer)
+    lvr2::MeshBuffer& buffer)
 {
-    // copy vertices
-    vector<float> vertices;
-    for (unsigned int i = 0; i < mesh.vertices.size(); i++)
+    const size_t numVertices = mesh.vertices.size();
+    lvr2::floatArr vertices( new float[ numVertices * 3 ] );
+    const auto& mg_vertices = mesh.vertices;
+    for(size_t i; i<numVertices; i++)
     {
-        vertices.push_back((float) mesh.vertices[i].x);
-        vertices.push_back((float) mesh.vertices[i].y);
-        vertices.push_back((float) mesh.vertices[i].z);
+        vertices[ i * 3 + 0 ] = static_cast<float>(mg_vertices[i].x);
+        vertices[ i * 3 + 1 ] = static_cast<float>(mg_vertices[i].y);
+        vertices[ i * 3 + 2 ] = static_cast<float>(mg_vertices[i].z);
     }
-    buffer.setVertexArray(vertices);
+    buffer.setVertices(vertices, numVertices);
 
-    // copy faces
-    vector<unsigned int> faces;
-    for (unsigned int i = 0; i < mesh.triangles.size(); i++)
+    const size_t numFaces = mesh.triangles.size();
+    lvr2::indexArray faces( new unsigned int[ numVertices * 3 ] );
+    const auto& mg_faces = mesh.triangles;
+    for(size_t i; i<numFaces; i++)
     {
-        faces.push_back((unsigned int) mesh.triangles[i].vertex_indices[0]);
-        faces.push_back((unsigned int) mesh.triangles[i].vertex_indices[1]);
-        faces.push_back((unsigned int) mesh.triangles[i].vertex_indices[2]);
+        faces[ i * 3 + 0 ] = mg_faces[i].vertex_indices[0];
+        faces[ i * 3 + 1 ] = mg_faces[i].vertex_indices[1];
+        faces[ i * 3 + 2 ] = mg_faces[i].vertex_indices[2];
     }
-    buffer.setFaceArray(faces);
+    buffer.setFaceIndices(faces, numFaces);
 
-    // copy normals
-    vector<float> normals;
-    for (unsigned int i = 0; i < mesh.vertex_normals.size(); i++)
+    const size_t numNormals = mesh.vertex_normals.size();
+    lvr2::floatArr normals( new float[ numNormals * 3 ] );
+    const auto& mg_normals = mesh.vertex_normals;
+    for(size_t i; i<numNormals; i++)
     {
-        normals.push_back((float) mesh.vertex_normals[i].x);
-        normals.push_back((float) mesh.vertex_normals[i].y);
-        normals.push_back((float) mesh.vertex_normals[i].z);
+        normals[ i * 3 + 0 ] = static_cast<float>(mg_normals[i].x);
+        normals[ i * 3 + 1 ] = static_cast<float>(mg_normals[i].y);
+        normals[ i * 3 + 2 ] = static_cast<float>(mg_normals[i].z);
     }
-    buffer.setVertexNormalArray(normals);
+    buffer.setVertexNormals(normals);
 
     return true;
 }
 
-bool fromPolygonMeshToTriangleMesh(
-    mesh_msgs::PolygonMesh& polygon_mesh,
-    mesh_msgs::TriangleMesh& triangle_mesh
-)
+bool readMeshBuffer(lvr2::MeshBufferPtr& buffer_ptr, string path)
 {
-    lvr::Tesselator<lvr::Vertexf, lvr::Normalf>::init();
-    for (unsigned int i = 0; i < polygon_mesh.polygons.size(); i++)
-    {
-        vector <vector<lvr::Vertexf>> vectorBorderPoints;
-        vector <lvr::Vertexf> borderPoints;
-        for (unsigned int j = 0; j < polygon_mesh.polygons[i].vertex_indices.size(); j++)
-        {
-            geometry_msgs::Point tmp = polygon_mesh.vertices[polygon_mesh.polygons[i].vertex_indices[j]];
-            lvr::Vertexf vertex(tmp.x, tmp.y, tmp.z);
-            borderPoints.push_back(vertex);
-        }
-        vectorBorderPoints.push_back(borderPoints);
-        lvr::Tesselator<lvr::Vertexf, lvr::Normalf>::tesselate(vectorBorderPoints);
-    }
-
-    vector<float> vertices;
-    std::vector<unsigned int> indices;
-    std::vector <std::vector<lvr::Vertexf>> vectorBorderPoints;
-    lvr::Tesselator<lvr::Vertexf, lvr::Normalf>::getFinalizedTriangles(
-        vertices,
-        indices,
-        vectorBorderPoints
-    );
-    lvr::Tesselator<lvr::Vertexf, lvr::Normalf>::clear();
-
-    for (unsigned int i = 0; i < vertices.size(); i += 3)
-    {
-        geometry_msgs::Point vertex;
-        vertex.x = vertices[i];
-        vertex.y = vertices[i + 1];
-        vertex.z = vertices[i + 2];
-        triangle_mesh.vertices.push_back(vertex);
-    }
-
-    for (unsigned int i = 0; i < indices.size(); i += 3)
-    {
-        mesh_msgs::TriangleIndices triangle;
-        triangle.vertex_indices[0] = indices[i];
-        triangle.vertex_indices[1] = indices[i + 1];
-        triangle.vertex_indices[2] = indices[i + 2];
-        triangle_mesh.triangles.push_back(triangle);
-    }
-    return true;
-}
-
-bool readMeshBuffer(lvr::MeshBufferPtr& buffer, string path)
-{
-    lvr::ModelFactory io_factory;
-    lvr::ModelPtr model = io_factory.readModel(path);
+    lvr2::ModelFactory io_factory;
+    lvr2::ModelPtr model = io_factory.readModel(path);
 
     if (!model)
     {
@@ -470,22 +415,22 @@ bool readMeshBuffer(lvr::MeshBufferPtr& buffer, string path)
     }
     else
     {
-        buffer = model->m_mesh;
+        buffer_ptr = model->m_mesh;
         return true;
     }
 }
 
-bool writeMeshBuffer(lvr::MeshBufferPtr& buffer, string path)
+bool writeMeshBuffer(lvr2::MeshBufferPtr& buffer, string path)
 {
-    lvr::ModelPtr model(new lvr::Model(buffer));
-    lvr::ModelFactory::saveModel(model, path);
+    lvr2::ModelPtr model(new lvr2::Model(buffer));
+    lvr2::ModelFactory::saveModel(model, path);
     return true;
 }
 
 bool readTriangleMesh(mesh_msgs::TriangleMesh& mesh, string path)
 {
-    lvr::ModelFactory io_factory;
-    lvr::ModelPtr model = io_factory.readModel(path);
+    lvr2::ModelFactory io_factory;
+    lvr2::ModelPtr model = io_factory.readModel(path);
 
     if (!model)
     {
@@ -496,22 +441,21 @@ bool readTriangleMesh(mesh_msgs::TriangleMesh& mesh, string path)
 
 bool writeTriangleMesh(mesh_msgs::TriangleMesh& mesh, string path)
 {
-    lvr::MeshBuffer buffer;
-    if (fromTriangleMeshToMeshBuffer(mesh, buffer))
+    lvr2::MeshBufferPtr buffer_ptr = lvr2::MeshBufferPtr(new lvr2::MeshBuffer);
+    if (fromTriangleMeshToMeshBuffer(mesh, *buffer_ptr))
     {
-        lvr::MeshBufferPtr buffer_ptr = boost::make_shared<lvr::MeshBuffer>(buffer);
-
-        lvr::ModelPtr model(new lvr::Model(buffer_ptr));
-        lvr::ModelFactory::saveModel(model, path);
+        lvr2::ModelPtr model(new lvr2::Model(buffer_ptr));
+        lvr2::ModelFactory::saveModel(model, path);
         return true;
     }
-    else return false;
+    return false;
 }
 
-void removeDuplicates(lvr::MeshBuffer& buffer)
+/*
+void removeDuplicates(lvr2::MeshBuffer& buffer)
 {
-    lvr::floatArr old_vertexBuffer;
-    lvr::uintArr old_indexBuffer;
+    lvr2::floatArr old_vertexBuffer;
+    lvr2::uintArr old_indexBuffer;
     std::vector<float> new_vertexBuffer;
     std::vector<unsigned int> new_indexBuffer;
 
@@ -556,6 +500,20 @@ void removeDuplicates(lvr::MeshBuffer& buffer)
     buffer.setVertexArray(new_vertexBuffer);
     buffer.setFaceArray(new_indexBuffer);
 }
+*/
+
+/*
+TODO
+void removeDuplicates(mesh_msgs::TriangleMesh& mesh)
+{
+    lvr::MeshBuffer buffer;
+    fromTriangleMeshToMeshBuffer(mesh, buffer);
+    removeDuplicates(buffer);
+
+    lvr::MeshBufferPtr buffer_ptr = boost::make_shared<lvr::MeshBuffer>(buffer);
+    fromMeshBufferToTriangleMesh(buffer_ptr, mesh);
+}
+*/
 
 void intensityToTriangleRainbowColors(
     const std::vector<float>& intensity,
@@ -660,16 +618,6 @@ void intensityToVertexRainbowColors(const std::vector<float>& intensity, mesh_ms
     intensityToVertexRainbowColors(intensity, mesh, min, max);
 }
 
-void removeDuplicates(mesh_msgs::TriangleMesh& mesh)
-{
-    lvr::MeshBuffer buffer;
-    fromTriangleMeshToMeshBuffer(mesh, buffer);
-    removeDuplicates(buffer);
-
-    lvr::MeshBufferPtr buffer_ptr = boost::make_shared<lvr::MeshBuffer>(buffer);
-    fromMeshBufferToTriangleMesh(buffer_ptr, mesh);
-}
-
 static inline bool hasCloudChannel(const sensor_msgs::PointCloud2& cloud, const std::string& field_name)
 {
     // Get the index we need
@@ -679,19 +627,14 @@ static inline bool hasCloudChannel(const sensor_msgs::PointCloud2& cloud, const 
     return false;
 }
 
-bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBuffer& buffer)
+bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, lvr2::PointBuffer& buffer)
 {
-    ROS_DEBUG_STREAM("convert from PointCloud2 to PointBuffer.");
-
     size_t size = cloud.height * cloud.width;
 
     typedef sensor_msgs::PointCloud2ConstIterator<float> CloudIterFloat;
-    typedef sensor_msgs::PointCloud2ConstIterator <uint8_t> CloudIterUInt8;
-
+    typedef sensor_msgs::PointCloud2ConstIterator<uint8_t> CloudIterUInt8;
 
     std::list<int> filter_nan;
-    lvr::PointBuffer old_buffer;
-
 
     // copy point data
     CloudIterFloat iter_x_filter(cloud, "x");
@@ -703,8 +646,12 @@ bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBu
     for (int i = 0; iter_x_filter != iter_x_filter.end();
          ++iter_x_filter, ++iter_y_filter, ++iter_z_filter, i++)
     {
-        if (!std::isnan(*iter_x_filter) && !std::isnan(*iter_y_filter) && !std::isnan(*iter_z_filter))
+        if( !std::isnan(*iter_x_filter) &&
+            !std::isnan(*iter_y_filter) &&
+            !std::isnan(*iter_z_filter))
+        {
             size++;
+        }
         else
         {
             filter_nan.push_back(i);
@@ -713,7 +660,7 @@ bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBu
 
     filter_nan.sort();
 
-    float *pointData = new float[size * 3];
+    lvr2::floatArr pointData(new float[size * 3]);
 
     // copy point data
     CloudIterFloat iter_x(cloud, "x");
@@ -722,11 +669,11 @@ bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBu
 
 
     std::list<int> tmp_filter = filter_nan;
-    int index = 0;
-    for (int i = 0;
+    int index, i;
+    for (i = 0, index = 0;
          iter_x != iter_x.end();
          ++iter_x, ++iter_y, ++iter_z,
-             index++)
+         index++)
     {
         // skip NaN point values
         if (!tmp_filter.empty() && index == tmp_filter.front())
@@ -743,8 +690,7 @@ bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBu
         i += 3;
 
     }
-    old_buffer.setPointArray(lvr::floatArr(pointData), size);
-
+    buffer.setPointArray(pointData, size);
 
     // copy point normals if available
     bool normalsAvailable =
@@ -754,19 +700,17 @@ bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBu
 
     if (normalsAvailable)
     {
-        ROS_DEBUG_STREAM("include normals in conversion.");
         CloudIterFloat iter_n_x(cloud, "normal_x");
         CloudIterFloat iter_n_y(cloud, "normal_y");
         CloudIterFloat iter_n_z(cloud, "normal_z");
-        float *normalsData = new float[size * 3];
+        lvr2::floatArr normalsData(new float[size * 3]);
         tmp_filter = filter_nan;
-        int index = 0;
-        for (int i = 0;
+        int index, i;
+        for (i = 0, index = 0;
              iter_n_x != iter_n_x.end();
              ++iter_n_x, ++iter_n_y, ++iter_n_z,
                  index++)
         {
-
             // skip NaN point values
             if (!tmp_filter.empty() && index == tmp_filter.front())
             {
@@ -781,22 +725,19 @@ bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBu
 
             i += 3;
         }
-        old_buffer.setPointNormalArray(lvr::floatArr(normalsData), size);
+        buffer.setNormalArray(normalsData, size);
     }
-
 
     // copy color data if available
     if (hasCloudChannel(cloud, "rgb"))
     {
-        ROS_DEBUG_STREAM("include rgb in conversion.");
         CloudIterUInt8 iter_rgb(cloud, "rgb");
-        uint8_t *colorData = new uint8_t[size * 3];
+        lvr2::ucharArr colorData(new uint8_t[size * 3]);
         tmp_filter = filter_nan;
-        int index = 0;
-        for (int i = 0; iter_rgb != iter_rgb.end();
+        int index, i;
+        for (i = 0, index = 0; iter_rgb != iter_rgb.end();
              ++iter_rgb, index++)
         {
-
             // skip NaN point values
             if (!tmp_filter.empty() && index == tmp_filter.front())
             {
@@ -811,22 +752,19 @@ bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBu
 
             i += 3;
         }
-        old_buffer.setPointColorArray(lvr::ucharArr(colorData), size);
+        buffer.setColorArray(colorData, size);
     }
-
 
     // copy intensity if available
     if (hasCloudChannel(cloud, "intensities"))
     {
-        ROS_DEBUG_STREAM("include intensities in conversion.");
         CloudIterFloat iter_int(cloud, "intensities");
-        float *intensityData = new float[size];
+        lvr2::floatArr intensityData(new float[size]);
         tmp_filter = filter_nan;
-        int index = 0;
-        for (int i = 0; iter_int != iter_int.end();
+        int index, i;
+        for (i = 0, index = 0; iter_int != iter_int.end();
              ++iter_int, index++)
         {
-
             // skip NaN point values
             if (!tmp_filter.empty() && index == tmp_filter.front())
             {
@@ -838,51 +776,60 @@ bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBu
             intensityData[i] = *iter_int;
             i++;
         }
-        old_buffer.setPointIntensityArray(lvr::floatArr(intensityData), size);
+        buffer.addFloatChannel(intensityData, "intensity", size, 1);
     }
-    buffer = PointBuffer(old_buffer);
-    ROS_DEBUG_STREAM("conversion finished.");
     return true;
 }
 
 bool fromMeshGeometryMessageToMeshBuffer(
     const mesh_msgs::MeshGeometry& mesh_geometry,
-    const lvr2::MeshBufferPtr<Vec>& buffer
+    const lvr2::MeshBufferPtr& buffer
 )
 {
     // copy vertices
-    vector<float> vertices;
-    vertices.reserve(mesh_geometry.vertices.size() * 3);
+    lvr2::floatArr vertices(new float[mesh_geometry.vertices.size() * 3]);
+    int i = 0;
     for (auto vertex : mesh_geometry.vertices)
     {
-        vertices.push_back(static_cast<float>(vertex.x));
-        vertices.push_back(static_cast<float>(vertex.y));
-        vertices.push_back(static_cast<float>(vertex.z));
+        vertices[i] = static_cast<float>(vertex.x);
+        vertices[i+1] = static_cast<float>(vertex.y);
+        vertices[i+2] = static_cast<float>(vertex.z);
+        i += 3;
     }
-    buffer->setVertices(vertices);
+    buffer->setVertices(vertices, mesh_geometry.vertices.size());
 
     // copy faces
-    vector<unsigned int> faces;
-    faces.reserve(mesh_geometry.faces.size() * 3);
+    lvr2::indexArray faces(new unsigned int[mesh_geometry.faces.size() * 3]);
+    i = 0;
     for (auto face : mesh_geometry.faces)
     {
-        faces.push_back(face.vertex_indices[0]);
-        faces.push_back(face.vertex_indices[1]);
-        faces.push_back(face.vertex_indices[2]);
+        faces[i] = face.vertex_indices[0];
+        faces[i+1] = face.vertex_indices[1];
+        faces[i+2] = face.vertex_indices[2];
+        i += 3;
     }
-    buffer->setFaceIndices(faces);
+    buffer->setFaceIndices(faces, mesh_geometry.faces.size() * 3);
 
-    // copy normals
-    vector<float> normals;
-    normals.reserve(mesh_geometry.vertex_normals.size() * 3);
-    for (auto normal : mesh_geometry.vertex_normals)
+    if(mesh_geometry.vertex_normals.size() == mesh_geometry.vertices.size())
     {
-        normals.push_back(static_cast<float>(normal.x));
-        normals.push_back(static_cast<float>(normal.y));
-        normals.push_back(static_cast<float>(normal.z));
+        // copy normals
+        lvr2::floatArr normals(new float[mesh_geometry.vertex_normals.size() * 3]);
+        i = 0;
+        for (auto normal : mesh_geometry.vertex_normals)
+        {
+            normals[i] = static_cast<float>(normal.x);
+            normals[i+1] = static_cast<float>(normal.y);
+            normals[i+2] = static_cast<float>(normal.z);
+            i += 3;
+        }
+        buffer->setVertexNormals(normals);
     }
-    buffer->setVertexNormals(normals);
-
+    else
+    {
+        ROS_ERROR_STREAM("Number of normals (" << mesh_geometry.vertex_normals.size()
+          << ") must be equal to number of vertices (" << mesh_geometry.vertices.size()
+          << "), ignore normals!");
+    }
     return true;
 }
 } // end namespace

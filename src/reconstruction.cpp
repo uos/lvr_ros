@@ -36,14 +36,11 @@ using std::move;
 #include "lvr_ros/reconstruction.h"
 #include "lvr_ros/conversions.h"
 
-#include <lvr/io/PLYIO.hpp>
-#include <lvr/config/lvropenmp.hpp>
-#include <lvr/geometry/Matrix4.hpp>
-#include <lvr/texture/Texture.hpp>
-#include <lvr/texture/Transform.hpp>
-#include <lvr/texture/Texturizer.hpp>
-#include <lvr/texture/Statistics.hpp>
-#include <lvr/geometry/QuadricVertexCosts.hpp>
+#include <lvr2/io/PLYIO.hpp>
+#include <lvr2/config/lvropenmp.hpp>
+#include <lvr2/geometry/Matrix4.hpp>
+#include <lvr2/texture/Texture.hpp>
+#include <lvr2/algorithm/Texturizer.hpp>
 
 #include <lvr2/geometry/HalfEdgeMesh.hpp>
 #include <lvr2/geometry/Vector.hpp>
@@ -73,13 +70,13 @@ using std::move;
 #if defined CUDA_FOUND
     #define GPU_FOUND
 
-    #include <lvr/reconstruction/cuda/CudaSurface.hpp>
-    typedef lvr::CudaSurface GpuSurface;
+    #include <lvr2/reconstruction/cuda/CudaSurface.hpp>
+    typedef lvr2::CudaSurface GpuSurface;
 #elif defined OPENCL_FOUND
     #define GPU_FOUND
 
-    #include <lvr/reconstruction/opencl/ClSurface.hpp>
-    typedef lvr::ClSurface GpuSurface;
+    #include <lvr2/reconstruction/opencl/ClSurface.hpp>
+    typedef lvr2::ClSurface GpuSurface;
 #endif
 
 namespace lvr_ros
@@ -264,7 +261,7 @@ bool Reconstruction::createMeshMessageFromPointCloud(
 
 
     PointBufferPtr point_buffer_ptr(new PointBuffer);
-    lvr2::MeshBufferPtr<Vec> mesh_buffer_ptr(new lvr2::MeshBuffer<Vec>);
+    lvr2::MeshBufferPtr mesh_buffer_ptr(new lvr2::MeshBuffer);
 
     if (!lvr_ros::fromPointCloud2ToPointBuffer(cloud, *point_buffer_ptr))
     {
@@ -279,14 +276,6 @@ bool Reconstruction::createMeshMessageFromPointCloud(
         ROS_ERROR_STREAM("Reconstruction failed!");
         return false;
     }
-    /*if (!lvr_ros::fromMeshBufferToTriangleMesh(mesh_buffer_ptr->toOldBuffer(), mesh_msg.mesh))
-    {
-        ROS_ERROR_STREAM(
-            "Could not convert point cloud from \"lvr::MeshBuffer\" "
-            "to \"mesh_msgs::TriangleMeshStamped\"!"
-        );
-        return false;
-    }*/
     if (!lvr_ros::fromMeshBufferToMeshMessages(
             mesh_buffer_ptr,
             cache_mesh_geometry_stamped.mesh_geometry,
@@ -327,7 +316,7 @@ bool Reconstruction::createMeshMessageFromPointCloud(
 
 bool Reconstruction::createMeshBufferFromPointBuffer(
     PointBufferPtr& point_buffer,
-    lvr2::MeshBufferPtr<Vec>& mesh_buffer
+    lvr2::MeshBufferPtr& mesh_buffer
 )
 {
     // Create a point cloud manager
@@ -338,7 +327,7 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
     // Create point set surface object
     if (pcm_name == "PCL")
     {
-        lvr2::panic("PCL not supported right meow!");
+        lvr2::panic("PCL not supported right now!");
     }
     else if (
         pcm_name == "STANN" ||
@@ -375,27 +364,25 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
     {
         if(use_gpu){
             #ifdef GPU_FOUND
-                size_t num_points;
-                lvr::floatArr points;
-                lvr::PointBuffer old_buffer = point_buffer->toOldBuffer();
-                points = old_buffer.getPointArray(num_points);
+                size_t num_points = point_buffer->numPoints();
+                lvr2::floatArr points = point_buffer->getPointArray();
                 lvr::floatArr normals = lvr::floatArr(new float[ num_points * 3 ]);
                 ROS_INFO_STREAM("Generate GPU kd-tree...");
                 GpuSurface gpu_surface(points, num_points);
-                ROS_INFO_STREAM("finished.");
+                ROS_INFO_STREAM("GPU kd-tree done.");
 
                 gpu_surface.setKn(config.kn);
                 gpu_surface.setKi(config.ki);
                 gpu_surface.setFlippoint(config.flipx, config.flipy, config.flipz);
-                ROS_INFO_STREAM("Start Normal Calculation...");
+                ROS_INFO_STREAM("Start normal calculation...");
                 gpu_surface.calculateNormals();
                 gpu_surface.getNormals(normals);
-                ROS_INFO_STREAM("finished.");
-                old_buffer.setPointNormalArray(normals, num_points);
-                point_buffer->copyNormalsFrom(old_buffer);
+                ROS_INFO_STREAM("Normal computation done.");
+
+                point_buffer->setNormalArray(normals, num_points * 3);
                 gpu_surface.freeGPU();
             #else
-                std::cout << "ERROR: GPU Driver not installed" << std::endl;
+                ROS_ERROR("\"use_gpu\" is active, but GPU driver not installed!");
                 surface->calculateSurfaceNormals();
             #endif
         }
@@ -543,26 +530,14 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
         // Add data to finalize algorithm
         finalize.setMaterializerResult(matResult);
 
-        boost::shared_ptr<lvr2::MeshBuffer<Vec>> meshBufferBoostPtr = finalize.apply(mesh);
-        lvr2::MeshBuffer<Vec> bufferCopy = *meshBufferBoostPtr.get();
-        mesh_buffer = make_shared<lvr2::MeshBuffer<Vec>>(bufferCopy);
+        mesh_buffer = finalize.apply(mesh);
     }
     else
     {
         // Finalize mesh (convert it to simple `MeshBuffer`)
         lvr2::SimpleFinalizer<Vec> finalize;
         finalize.setNormalData(vertexNormals);
-
-        // Convert boost::shared_ptr to std::shared_ptr
-        auto boostSharedPtr = finalize.apply(mesh);
-        auto stdSharedPtr = std::shared_ptr<lvr2::MeshBuffer<Vec>>(
-            boostSharedPtr.get(),
-            [boostSharedPtr](lvr2::MeshBuffer<Vec>*) mutable {
-                boostSharedPtr.reset();
-            }
-        );
-
-        mesh_buffer = stdSharedPtr;
+        mesh_buffer = finalize.apply(mesh);
     }
 
     ROS_INFO_STREAM("Reconstruction finished!");

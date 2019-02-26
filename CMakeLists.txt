@@ -14,34 +14,30 @@ set(PACKAGE_DEPENDENCIES
   roscpp
   sensor_msgs
   geometry_msgs
-  hyperspectral_calibration
   label_manager
   tf
-  pcl_ros
-  pcl_definitions
 )
 
 find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})
+find_package(LVR 2 REQUIRED)
+find_package(OpenCV REQUIRED)
 
-find_package(LVR REQUIRED)
+#find_package(VTK REQUIRED)
 
-add_definitions(${LVR_DEFINITIONS})
+add_definitions(${LVR_DEFINITIONS} ${OpenCV_DEFINITIONS})
 
 add_action_files(
   DIRECTORY
   action
   FILES
   Reconstruct.action
-  SendCloud.action
-  StartReconstruction.action
-  StopReconstruction.action
 )
 
 find_path(OPENGL_INC gl.h /usr/include/GL)
 include_directories(${OPENGL_INC})
 
-find_package(PCL 1.2 REQUIRED)
-include_directories(SYSTEM ${PCL_INCLUDE_DIRS})
+#find_package(PCL 1.2 REQUIRED)
+#include_directories(SYSTEM ${PCL_INCLUDE_DIRS})
 
 find_package(OpenCL)
 if(OPENCL_FOUND)
@@ -61,7 +57,8 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${LVR_INCLUDE_DIRS}
-  ${PCL_INCLUDE_DIRS}
+  #${PCL_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 generate_dynamic_reconfigure_options(
@@ -91,6 +88,7 @@ add_library(${PROJECT_NAME}_conversions
 target_link_libraries(${PROJECT_NAME}_conversions
   ${catkin_LIBRARIES}
   ${LVR_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 add_executable(${PROJECT_NAME}_reconstruction
@@ -100,84 +98,31 @@ add_executable(${PROJECT_NAME}_reconstruction
 )
 
 target_link_libraries(${PROJECT_NAME}_reconstruction
-    ${catkin_LIBRARIES}
-    ${LVR_LIBRARIES}
-    ${PCL_LIBRARIES}
+  ${catkin_LIBRARIES}
+  ${LVR_LIBRARIES}
+  #${PCL_LIBRARIES}
+  #${VTK_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
-add_executable(${PROJECT_NAME}_remote_reconstruction_client
-    src/remote_reconstruction_client.cpp
-)
-
-add_executable(${PROJECT_NAME}_remote_reconstruction
-  src/colors.cpp
-  src/conversions.cpp
-  src/remote_reconstruction.cpp
-  src/FileObserver.cpp
-)
-target_link_libraries(${PROJECT_NAME}_remote_reconstruction
-    ${catkin_LIBRARIES}
-    ${LVR_LIBRARIES}
-    ${PCL_LIBRARIES}
-)
-
-target_link_libraries(${PROJECT_NAME}_remote_reconstruction_client
-    ${catkin_LIBRARIES}
-    ${PCL_LIBRARIES}
-)
 if(OPENCL_FOUND)
-    target_compile_definitions(${PROJECT_NAME}_reconstruction PRIVATE OPENCL_FOUND=1)
+  target_compile_definitions(${PROJECT_NAME}_reconstruction PRIVATE OPENCL_FOUND=1)
 endif()
-
-add_executable(${PROJECT_NAME}_debug
-    src/debug.cpp
-)
-target_link_libraries(${PROJECT_NAME}_debug
-    ${catkin_LIBRARIES}
-    ${LVR_LIBRARIES}
-    ${PCL_LIBRARIES}
-    ${PROJECT_NAME}_conversions
-)
 
 # HDF5 to message executable
 # link libraries
 find_package(HDF5 REQUIRED COMPONENTS C CXX HL)
 include_directories(${HDF5_INCLUDE_DIRS})
-link_directories(${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
-# create executable
-add_executable(${PROJECT_NAME}_hdf5_to_msg src/hdf5_to_msg.cpp)
-target_link_libraries(${PROJECT_NAME}_hdf5_to_msg
-    ${catkin_LIBRARIES}
-    ${LVR_LIBRARIES}
-    ${PCL_LIBRARIES}
-    ${HDF5_LIBRARIES}
-    ${PROJECT_NAME}_conversions
-  )
 
-
-add_dependencies(${PROJECT_NAME}_remote_reconstruction
-  ${catkin_EXPORTED_TARGETS}
-  ${PROJECT_NAME}_gencfg
-  ${PROJECT_NAME}_gencpp
-)
-add_dependencies(${PROJECT_NAME}_remote_reconstruction_client
-  ${catkin_EXPORTED_TARGETS}
-  ${PROJECT_NAME}_gencfg
-  ${PROJECT_NAME}_gencpp
-  )
 add_dependencies(${PROJECT_NAME}_reconstruction
-  ${lvr_ros_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
   ${PROJECT_NAME}_gencpp
-)
+  )
+
 add_dependencies(${PROJECT_NAME}_conversions
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
-  ${PROJECT_NAME}_gencpp
-)
-add_dependencies(${PROJECT_NAME}_debug
-  ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencpp
 )
 
@@ -185,7 +130,7 @@ install(
   DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 install(
-  TARGETS ${PROJECT_NAME}_conversions ${PROJECT_NAME}_reconstruction ${PROJECT_NAME}_debug
+  TARGETS ${PROJECT_NAME}_conversions ${PROJECT_NAME}_reconstruction
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
