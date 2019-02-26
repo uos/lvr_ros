@@ -64,6 +64,7 @@
 #include <mesh_msgs/MeshMaterialsStamped.h>
 #include <mesh_msgs/MeshVertexColors.h>
 #include <mesh_msgs/MeshVertexColorsStamped.h>
+#include <mesh_msgs/MeshVertexCostsStamped.h>
 #include <mesh_msgs/MeshVertexTexCoords.h>
 #include <mesh_msgs/MeshMaterial.h>
 #include <mesh_msgs/MeshTexture.h>
@@ -92,9 +93,9 @@ typedef boost::shared_ptr <MaterialGroup> MaterialGroupPtr;
 
 
 template<typename BaseVecT>
-const mesh_msgs::MeshGeometry toMeshGeometry(
-    lvr2::HalfEdgeMesh<BaseVecT>& hem,
-    lvr2::VertexMap<lvr2::Normal<BaseVecT>> normals = lvr2::VertexMap<lvr2::Normal<BaseVecT>>())
+inline const mesh_msgs::MeshGeometry toMeshGeometry(
+    const lvr2::HalfEdgeMesh<BaseVecT>& hem,
+    const lvr2::VertexMap<lvr2::Normal<BaseVecT>>& normals = lvr2::VertexMap<lvr2::Normal<BaseVecT>>())
 {
   mesh_msgs::MeshGeometry mesh_msg;
   mesh_msg.vertices.reserve(hem.numVertices());
@@ -105,13 +106,13 @@ const mesh_msgs::MeshGeometry toMeshGeometry(
   new_indices.reserve(hem.numVertices());
 
   size_t k = 0;
-  for(size_t i=0; i<hem.nextVertexIndex(); i++)
+  for(auto vH : hem.vertices())
   {
-    const lvr2::VertexHandle vH(i);
-    if(!hem.containsVertex(vH)) continue;
-    new_indices.insert(vH, k);
+    new_indices.insert(vH, k++);
     const auto& pi = hem.getVertexPosition(vH);
-    mesh_msg.vertices.push_back(geometry_msgs::Point(pi.x, pi.y, pi.z));
+    geometry_msgs::Point p;
+    p.x = pi.x; p.y = pi.y; p.z = pi.z;
+    mesh_msg.vertices.push_back(p);
   }
 
   for(auto fH : hem.faces())
@@ -123,16 +124,59 @@ const mesh_msgs::MeshGeometry toMeshGeometry(
     indices.vertex_indices[2] = new_indices[vHs[2]];
     mesh_msg.faces.push_back(indices);
   }
-  
+
   for(auto vH : hem.vertices())
   {
-    auto& n_opt = normals(vH);
-    if(n_opt)
-    {
-      const auto& n = n_opt.get();
-      mesh_msg.vertex_normals.push_back(geometry_msgs::Point(n.x, n.y, n.z));
-    }
+    const auto& n = normals[vH];
+    geometry_msgs::Point v;
+    v.x = n.x; v.y = n.y; v.z = n.z;
+    mesh_msg.vertex_normals.push_back(v);
   }
+
+  return mesh_msg;
+}
+
+template<typename BaseVecT>
+inline const mesh_msgs::MeshGeometryStamped toMeshGeometryStamped(
+    const lvr2::HalfEdgeMesh<BaseVecT>& hem,
+    const std::string& frame_id,
+    const std::string& uuid,
+    const lvr2::VertexMap<lvr2::Normal<BaseVecT>>& normals = lvr2::VertexMap<lvr2::Normal<BaseVecT>>(),
+    const ros::Time& stamp = ros::Time::now())
+{
+    mesh_msgs::MeshGeometryStamped mesh_msg;
+    mesh_msg.mesh_geometry = toMeshGeometry<BaseVecT>(hem, normals);
+    mesh_msg.uuid = uuid;
+    mesh_msg.header.frame_id = frame_id;
+    mesh_msg.header.stamp = stamp;
+    return mesh_msg;
+}
+
+inline const mesh_msgs::MeshVertexCosts toVertexCosts(const lvr2::DenseVertexMap<float>& costs)
+{
+    mesh_msgs::MeshVertexCosts costs_msg;
+    costs_msg.costs.reserve(costs.numValues());
+    for(auto vH : costs){
+        costs_msg.costs.push_back(costs[vH]);
+    }
+    return costs_msg;
+}
+
+inline const mesh_msgs::MeshVertexCostsStamped toVertexCostsStamped(
+    const lvr2::DenseVertexMap<float>& costs,
+    const std::string& name,
+    const std::string& frame_id,
+    const std::string& uuid,
+    const ros::Time& stamp = ros::Time::now()
+    )
+{
+    mesh_msgs::MeshVertexCostsStamped mesh_msg;
+    mesh_msg.mesh_vertex_costs = toVertexCosts(costs);
+    mesh_msg.uuid = uuid;
+    mesh_msg.type = name;
+    mesh_msg.header.frame_id = frame_id;
+    mesh_msg.header.stamp = stamp;
+    return mesh_msg;
 }
 
 
