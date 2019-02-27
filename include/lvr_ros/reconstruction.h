@@ -46,8 +46,8 @@
 #include <lvr2/geometry/BaseVector.hpp>
 #include <lvr2/io/PointBuffer.hpp>
 #include <lvr2/io/MeshBuffer.hpp>
-#include <lvr/io/PointBuffer.hpp>
-#include <lvr/io/MeshBuffer.hpp>
+#include <lvr2/io/PointBuffer.hpp>
+#include <lvr2/io/MeshBuffer.hpp>
 
 
 namespace lvr_ros

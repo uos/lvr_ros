@@ -44,7 +44,7 @@ using std::move;
 
 #include <lvr2/geometry/HalfEdgeMesh.hpp>
 #include <lvr2/geometry/Vector.hpp>
-#include <lvr2/geometry/Point.hpp>
+//#include <lvr2/geometry/Point.hpp>
 #include <lvr2/geometry/Normal.hpp>
 #include <lvr2/algorithm/FinalizeAlgorithms.hpp>
 #include <lvr2/geometry/BoundingBox.hpp>
@@ -366,7 +366,7 @@ bool Reconstruction::createMeshBufferFromPointBuffer(
             #ifdef GPU_FOUND
                 size_t num_points = point_buffer->numPoints();
                 lvr2::floatArr points = point_buffer->getPointArray();
-                lvr::floatArr normals = lvr::floatArr(new float[ num_points * 3 ]);
+                lvr2::floatArr normals = lvr2::floatArr(new float[ num_points * 3 ]);
                 ROS_INFO_STREAM("Generate GPU kd-tree...");
                 GpuSurface gpu_surface(points, num_points);
                 ROS_INFO_STREAM("GPU kd-tree done.");
