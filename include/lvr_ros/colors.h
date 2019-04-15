@@ -45,6 +45,14 @@
 #ifndef LVR_ROS__COLORS_H_
 #define LVR_ROS__COLORS_H_
 
-void getRainbowColor(float value, float& r, float& g, float& b);
+#include <std_msgs/ColorRGBA.h>
+
+namespace lvr_ros
+{
+  std_msgs::ColorRGBA getRainbowColor(const float value);
+
+  void getRainbowColor(float value, float& r, float& g, float& b);
+
+} /* namespace lvr_ros */
 
 #endif /* colors.h */

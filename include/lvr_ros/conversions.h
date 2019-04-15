@@ -92,10 +92,10 @@ typedef std::vector <boost::shared_ptr<MaterialGroup>> GroupVector;
 typedef boost::shared_ptr <MaterialGroup> MaterialGroupPtr;
 
 
-template<typename BaseVecT>
+template<typename CoordType>
 inline const mesh_msgs::MeshGeometry toMeshGeometry(
-    const lvr2::HalfEdgeMesh<BaseVecT>& hem,
-    const lvr2::VertexMap<lvr2::Normal<BaseVecT>>& normals = lvr2::VertexMap<lvr2::Normal<BaseVecT>>())
+    const lvr2::HalfEdgeMesh<lvr2::BaseVector<CoordType>>& hem,
+    const lvr2::VertexMap<lvr2::Normal<CoordType>>& normals = lvr2::VertexMap<lvr2::Normal<CoordType>>())
 {
   mesh_msgs::MeshGeometry mesh_msg;
   mesh_msg.vertices.reserve(hem.numVertices());
@@ -136,20 +136,52 @@ inline const mesh_msgs::MeshGeometry toMeshGeometry(
   return mesh_msg;
 }
 
-template<typename BaseVecT>
+template<typename CoordType>
 inline const mesh_msgs::MeshGeometryStamped toMeshGeometryStamped(
-    const lvr2::HalfEdgeMesh<BaseVecT>& hem,
+    const lvr2::HalfEdgeMesh<lvr2::BaseVector<CoordType>>& hem,
     const std::string& frame_id,
     const std::string& uuid,
-    const lvr2::VertexMap<lvr2::Normal<BaseVecT>>& normals = lvr2::VertexMap<lvr2::Normal<BaseVecT>>(),
+    const lvr2::VertexMap<lvr2::Normal<CoordType>>& normals = lvr2::VertexMap<lvr2::Normal<CoordType>>(),
     const ros::Time& stamp = ros::Time::now())
 {
     mesh_msgs::MeshGeometryStamped mesh_msg;
-    mesh_msg.mesh_geometry = toMeshGeometry<BaseVecT>(hem, normals);
+    mesh_msg.mesh_geometry = toMeshGeometry<CoordType>(hem, normals);
     mesh_msg.uuid = uuid;
     mesh_msg.header.frame_id = frame_id;
     mesh_msg.header.stamp = stamp;
     return mesh_msg;
+}
+
+inline const mesh_msgs::MeshVertexCosts toVertexCosts(
+    const lvr2::VertexMap<float>& costs,
+    const size_t num_values,
+    const float default_value)
+{
+  mesh_msgs::MeshVertexCosts costs_msg;
+  costs_msg.costs.resize(num_values, default_value);
+  for(auto vH : costs){
+    costs_msg.costs[vH.idx()] = costs[vH];
+  }
+  return costs_msg;
+}
+
+inline const mesh_msgs::MeshVertexCostsStamped toVertexCostsStamped(
+    const lvr2::VertexMap<float>& costs,
+    const size_t num_values,
+    const float default_value,
+    const std::string& name,
+    const std::string& frame_id,
+    const std::string& uuid,
+    const ros::Time& stamp = ros::Time::now()
+)
+{
+  mesh_msgs::MeshVertexCostsStamped mesh_msg;
+  mesh_msg.mesh_vertex_costs = toVertexCosts(costs, num_values, default_value);
+  mesh_msg.uuid = uuid;
+  mesh_msg.type = name;
+  mesh_msg.header.frame_id = frame_id;
+  mesh_msg.header.stamp = stamp;
+  return mesh_msg;
 }
 
 inline const mesh_msgs::MeshVertexCosts toVertexCosts(const lvr2::DenseVertexMap<float>& costs)

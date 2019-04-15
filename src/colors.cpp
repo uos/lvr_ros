@@ -45,21 +45,35 @@
 #include "lvr_ros/colors.h"
 #include <math.h>
 #include <algorithm>
+#include <std_msgs/ColorRGBA.h>
 
-void getRainbowColor(float value, float& r, float& g, float& b)
+namespace lvr_ros
+{
+
+std_msgs::ColorRGBA getRainbowColor(const float value)
+{
+  std_msgs::ColorRGBA color;
+  getRainbowColor(value, color.r, color.g, color.b);
+  color.a = 1;
+  return color;
+}
+
+void getRainbowColor(float value, float &r, float &g, float &b)
 {
   value = std::min(value, 1.0f);
   value = std::max(value, 0.0f);
 
-  float h = value * 5.0f + 1.0f;
+  float h = value*5.0f + 1.0f;
   int i = floor(h);
   float f = h - i;
-  if ( !(i&1) ) f = 1 - f; // if i is even
+  if (!(i & 1)) f = 1 - f; // if i is even
   float n = 1 - f;
 
-  if      (i <= 1) r = n, g = 0, b = 1;
-  else if (i == 2) r = 0, g = n, b = 1;
-  else if (i == 3) r = 0, g = 1, b = n;
-  else if (i == 4) r = n, g = 1, b = 0;
+  if (i <= 1) r = n, g = 0, b = 1;
+  else if (i==2) r = 0, g = n, b = 1;
+  else if (i==3) r = 0, g = 1, b = n;
+  else if (i==4) r = n, g = 1, b = 0;
   else if (i >= 5) r = 1, g = n, b = 0;
 }
+
+} /* namespace lvr_ros */
