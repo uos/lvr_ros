@@ -29,6 +29,7 @@
 
 #include "lvr_ros/conversions.h"
 #include "lvr_ros/colors.h"
+#include <omp.h>
 #include <cmath>
 
 namespace lvr_ros
@@ -832,4 +833,224 @@ bool fromMeshGeometryMessageToMeshBuffer(
     }
     return true;
 }
+
+void PointBufferToPointCloud2(const lvr2::PointBufferPtr& buffer, std::string frame, sensor_msgs::PointCloud2Ptr& cloud) 
+{ 
+  // the offset will be updated by addPointField
+  cloud->header.stamp = ros::Time::now();
+  cloud->header.frame_id = frame;
+
+  ros::Rate r(60);
+
+  int type;
+  std::map<std::string, lvr2::Channel<float> > floatChannels;
+  type = buffer->getAllChannelsOfType<float>(floatChannels);
+
+  size_t size = 0;
+  // xyz needs to be at the start.
+  int offset = 4 * sizeof(float);
+  // LVR mb needs a float64buffer especially for time information.
+  for(auto channelPair: floatChannels)
+  {
+    // http://pointclouds.org/documentation/tutorials/adding_custom_ptype.php
+    // For the padding reasons.
+    if(channelPair.first == "points")
+    {
+      size = channelPair.second.numElements();
+      int p_offset = 0;
+      p_offset = addPointField(*cloud, "x", 1, sensor_msgs::PointField::FLOAT32, p_offset);
+      p_offset = addPointField(*cloud, "y", 1, sensor_msgs::PointField::FLOAT32, p_offset);
+      p_offset = addPointField(*cloud, "z", 1, sensor_msgs::PointField::FLOAT32, p_offset);
+      p_offset += sizeof(float);
+      cloud->point_step = offset;
+    }
+    else
+    {
+      // type in lvr2 starts at 0, in ros at 1
+      offset = addPointField(*cloud, channelPair.first, channelPair.second.width(), type + 1, offset);
+      int padding = (sizeof(float) * 4) - ((channelPair.second.width() * sizeof(float)) % (4 * sizeof(float)));
+      offset += padding;
+      cloud->point_step = offset;
+    }
+  }
+
+  std::map<std::string, lvr2::Channel<unsigned char> >  uCharChannels;
+  type = buffer->getAllChannelsOfType<unsigned char>(uCharChannels);
+
+  for(auto channelPair: uCharChannels)
+  {
+    offset = addPointField(*cloud, channelPair.first, channelPair.second.width(), type + 1, offset);
+
+    // Is this useful?!
+    int padding = (sizeof(float) * 4) - ((channelPair.second.width() * sizeof(float)) % (4 * sizeof(float)));
+    offset += padding;
+    cloud->point_step = offset;
+  }
+
+  // reserve size
+  sensor_msgs::PointCloud2Modifier mod(*cloud);
+  cloud->data.resize(size * cloud->point_step);
+  
+  cloud->height = 1;
+  cloud->width = size;
+
+ 
+  ROS_INFO("Starting conversion.");
+  for(auto field: cloud->fields)
+  {
+    // Points is a special case...
+    if(field.name == "x" || field.name == "y" || field.name == "z")
+    {
+      auto channel = floatChannels.at("points");
+      //auto iter_x  = floatIters.at("x");
+      //auto iter_y  = floatIters.at("y");
+      //auto iter_z  = floatIters.at("z");
+      #pragma omp parallel for
+      for(size_t i = 0; i < size; ++i)
+      {
+        unsigned char* ptr = &(cloud->data[cloud->point_step * i]);
+        *(reinterpret_cast<float*>(ptr))       = channel[i][0];
+        *((reinterpret_cast<float*>(ptr)) + 1) = channel[i][1];
+        *((reinterpret_cast<float*>(ptr)) + 2) = channel[i][2];
+        //*iter_x = channel[i][0];
+        //*iter_y = channel[i][1];
+        //*iter_z = channel[i][2];
+      }
+
+    }
+    else
+    {
+      if(field.datatype == sensor_msgs::PointField::FLOAT32)
+      {
+        auto channel = floatChannels.at(field.name);
+        //auto iter = floatIters.at(field.name);
+        #pragma omp parallel for
+        for(size_t i = 0; i < size; ++i)
+        {
+          unsigned char* ptr = &(cloud->data[cloud->point_step * i]) + field.offset;
+          for(size_t j = 0; j < field.count; ++j)
+          {
+            *((reinterpret_cast<float*>(ptr)) + j)  = channel[i][j];
+            //iter[j]  = channel[i][j];
+          }
+        }
+      }
+      else if (field.datatype == sensor_msgs::PointField::FLOAT32)
+      {
+        auto channel = uCharChannels.at(field.name);
+        //auto iter = uCharIters.at(field.name);
+        #pragma omp parallel for
+        for(size_t i = 0; i < size; ++i)
+        {
+          unsigned char* ptr = &(cloud->data[cloud->point_step * i]) + field.offset;
+          for(size_t j = 0; j < field.count; ++j)
+          {
+            //iter[j] = channel[i][j];
+            *(ptr + j) = channel[i][j];
+          }
+        }
+      }
+    }
+  }
+  ROS_INFO("DONE");
+}
+
+void PointCloud2ToPointBuffer(const sensor_msgs::PointCloud2Ptr& cloud, lvr2::PointBufferPtr& buffer) 
+{
+   buffer = lvr2::PointBufferPtr(new lvr2::PointBuffer());
+
+  for(auto field : cloud->fields)
+  {
+    std::cout << field.name << std::endl;
+    if(field.datatype == sensor_msgs::PointField::FLOAT32)
+    {
+      if(field.name == "x" || field.name == "y" || field.name == "z")
+      {
+        if(!buffer->hasFloatChannel("points"))
+        {
+            buffer->addEmptyChannel<float>("points", cloud->width * cloud->height, 3);
+          std::cout << cloud->width * cloud->height << std::endl;
+        }
+      }
+      else
+      {
+        std::cout << "Add channel " << field.name << " with size " << cloud->width * cloud->height << std::endl;
+        buffer->addEmptyChannel<float>(field.name, cloud->width * cloud->height, field.count);
+      }
+    
+    }
+  }
+
+  for(auto field: cloud->fields)
+  {
+    // Points is a special case...
+    if(field.name == "x" || field.name == "y" || field.name == "z")
+    {
+      auto channel = buffer->getChannel<float>("points");
+      if(channel)
+      {
+        std::cout << "already init" << std::endl;
+        continue;
+      }
+      
+      lvr2::floatArr points(new float[cloud->width * cloud->height * 3]);
+      buffer->setPointArray(points, cloud->width * cloud->height);
+      channel = buffer->getChannel<float>("points");
+
+      #pragma omp parallel for
+      for(size_t i = 0; i < (cloud->width * cloud->height); ++i)
+      {
+        unsigned char* ptr = &(cloud->data[cloud->point_step * i]);
+        (*channel)[i][0] = *(reinterpret_cast<float*>(ptr));
+        (*channel)[i][1] = *((reinterpret_cast<float*>(ptr)) + 1);
+        (*channel)[i][2] = *((reinterpret_cast<float*>(ptr)) + 2);
+      }
+
+    }
+    else
+    {
+      if(field.datatype == sensor_msgs::PointField::FLOAT32)
+      {
+        auto channel = buffer->getChannel<float>(field.name);
+
+        if(!channel)
+        {
+          ROS_INFO("Channel %s missing", field.name.c_str());
+          continue;
+        }
+
+        #pragma omp parallel for
+        for(size_t i = 0; i < (cloud->width * cloud->height); ++i)
+        {
+          unsigned char* ptr = &(cloud->data[cloud->point_step * i]) + field.offset;
+          for(size_t j = 0; j < field.count; ++j)
+          {
+            (*channel)[i][j] = *((reinterpret_cast<float*>(ptr)) + j);
+          }
+        }
+      }
+      else if (field.datatype == sensor_msgs::PointField::UINT8)
+      {
+        auto channel = buffer->getChannel<unsigned char>(field.name);
+
+        if(!channel)
+        {
+          ROS_INFO("Channel %s missing", field.name.c_str());
+          continue;
+        }
+
+        #pragma omp parallel for
+        for(size_t i = 0; i < (cloud->width * cloud->height); ++i)
+        {
+          unsigned char* ptr = &(cloud->data[cloud->point_step * i]) + field.offset;
+          for(size_t j = 0; j < field.count; ++j)
+          {
+            (*channel)[i][j] = *(ptr + j);
+          }
+        }
+      }
+    }
+  }
+}
+
 } // end namespace

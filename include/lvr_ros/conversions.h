@@ -388,7 +388,31 @@ void intensityToVertexRainbowColors(
  */
 void intensityToVertexRainbowColors(const std::vector<float>& intensity, mesh_msgs::TriangleMesh& mesh);
 
+
+
 bool fromPointCloud2ToPointBuffer(const sensor_msgs::PointCloud2& cloud, PointBuffer& buffer);
+
+/**
+ * @brief converts lvr2::Pointbuffer to pointcloud2.
+ *        Every channel is added as a pointfield.
+ *
+ * @param buffer the input lvr2::Pointbuffer
+ * @param frame the frame of the converted pointcloud2
+ * @param cloud the converted pointcloud2
+ */
+void PointBufferToPointCloud2(const lvr2::PointBufferPtr& buffer, std::string frame, sensor_msgs::PointCloud2Ptr& cloud);
+
+/**
+ * @brief converts pointcloud2 to a newly created Pointerbuffer.
+ *        Every pointfield is written into its own channel.
+ *
+ * @param cloud the input cloud
+ * @param buffer the converted lvr2::Pointbuffer
+ *
+ * @return 
+ */
+void PointCloud2ToPointBuffer(const sensor_msgs::PointCloud2Ptr& cloud, lvr2::PointBufferPtr& buffer);
+
 
 /**
  * @brief Convert mesh_msgs::MeshGeometry to lvr2::MeshBuffer
