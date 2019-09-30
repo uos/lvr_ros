@@ -179,7 +179,7 @@ bool fromMeshBufferToMeshMessages(
     // Copy vertex colors
     if (buffer->hasVertexColors())
     {
-        unsigned int color_channels = 3;
+        size_t color_channels = 3;
         auto buffer_vertex_colors = buffer->getVertexColors(color_channels);
         mesh_vertex_colors.vertex_colors.resize(n_vertices);
         for (size_t i = 0; i < n_vertices; i++)
