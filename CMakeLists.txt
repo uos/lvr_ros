@@ -15,14 +15,13 @@ set(PACKAGE_DEPENDENCIES
   sensor_msgs
   geometry_msgs
   label_manager
-  tf
+  tf2_ros
 )
 
 find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES})
 find_package(LVR2 REQUIRED)
 find_package(OpenCV REQUIRED)
-
-#find_package(VTK REQUIRED)
+find_package(MPI REQUIRED)
 
 add_definitions(${LVR2_DEFINITIONS} ${OpenCV_DEFINITIONS})
 
@@ -35,9 +34,6 @@ add_action_files(
 
 find_path(OPENGL_INC gl.h /usr/include/GL)
 include_directories(${OPENGL_INC})
-
-#find_package(PCL 1.2 REQUIRED)
-#include_directories(SYSTEM ${PCL_INCLUDE_DIRS})
 
 find_package(OpenCL)
 if(OPENCL_FOUND)
@@ -60,7 +56,6 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${LVR2_INCLUDE_DIRS}
-  #${PCL_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 )
 
@@ -79,7 +74,7 @@ generate_messages(
 catkin_package(
   CATKIN_DEPENDS ${PACKAGE_DEPENDENCIES}
   INCLUDE_DIRS include
-  DEPENDS LVR2
+  DEPENDS LVR2 MPI
   LIBRARIES ${PROJECT_NAME}_conversions
 )
 
@@ -103,8 +98,6 @@ add_executable(${PROJECT_NAME}_reconstruction
 target_link_libraries(${PROJECT_NAME}_reconstruction
   ${catkin_LIBRARIES}
   ${LVR2_LIBRARIES}
-  #${PCL_LIBRARIES}
-  #${VTK_LIBRARIES}
   ${OpenCV_LIBRARIES}
 )
 
@@ -138,6 +131,8 @@ install(
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+
+message("LVR2 LIBRARIES " ${LVR2_LIBRARIES})
 
 install(
   DIRECTORY include/${PROJECT_NAME}/

@@ -52,6 +52,8 @@ namespace lvr_ros
 
 std_msgs::ColorRGBA getRainbowColor(const float value)
 {
+  if(!std::isfinite(value))
+    return std_msgs::ColorRGBA();
   std_msgs::ColorRGBA color;
   getRainbowColor(value, color.r, color.g, color.b);
   color.a = 1;
