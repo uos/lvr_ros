@@ -95,11 +95,12 @@ typedef boost::shared_ptr <MaterialGroup> MaterialGroupPtr;
 template<typename CoordType>
 inline const mesh_msgs::MeshGeometry toMeshGeometry(
     const lvr2::HalfEdgeMesh<lvr2::BaseVector<CoordType>>& hem,
-    const lvr2::VertexMap<lvr2::Normal<CoordType>>& normals = lvr2::VertexMap<lvr2::Normal<CoordType>>())
+    const lvr2::VertexMap<lvr2::Normal<CoordType>>& normals = lvr2::DenseVertexMap<lvr2::Normal<CoordType>>())
 {
   mesh_msgs::MeshGeometry mesh_msg;
   mesh_msg.vertices.reserve(hem.numVertices());
   mesh_msg.faces.reserve(hem.numFaces());
+
   mesh_msg.vertex_normals.reserve(normals.numValues());
 
   lvr2::DenseVertexMap<size_t> new_indices;
@@ -141,7 +142,7 @@ inline const mesh_msgs::MeshGeometryStamped toMeshGeometryStamped(
     const lvr2::HalfEdgeMesh<lvr2::BaseVector<CoordType>>& hem,
     const std::string& frame_id,
     const std::string& uuid,
-    const lvr2::VertexMap<lvr2::Normal<CoordType>>& normals = lvr2::VertexMap<lvr2::Normal<CoordType>>(),
+    const lvr2::VertexMap<lvr2::Normal<CoordType>>& normals = lvr2::DenseVertexMap<lvr2::Normal<CoordType>>(),
     const ros::Time& stamp = ros::Time::now())
 {
     mesh_msgs::MeshGeometryStamped mesh_msg;
