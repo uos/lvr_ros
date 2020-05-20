@@ -1,42 +1,28 @@
 <?xml version="1.0"?>
-<package>
+<package format="2">
   <name>lvr_ros</name>
   <version>1.0.0</version>
-  <description>converts point clouds into meshes using lvr</description>
+  <description>converts point clouds and attributes into meshes and mesh attributes using lvr2</description>
 
   <maintainer email="spuetz@uos.de">Sebastian Pütz</maintainer>
 
-  <license>BSD</license>
+  <license>BSD 3-Clause</license>
   <author email="spuetz@uos.de">Sebastian Pütz</author>
   <author email="hdeeken@uos.de">Henning Deeken</author>
 
-  <build_depend>actionlib_msgs</build_depend>
-  <build_depend>actionlib</build_depend>
-  <build_depend>genmsg</build_depend>
-  <build_depend>message_generation</build_depend>
-  <build_depend>message_runtime</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_depend>geometry_msgs</build_depend>
-  <build_depend>mesh_msgs</build_depend>
-  <build_depend>dynamic_reconfigure</build_depend>
-  <build_depend>mbf_utility</build_depend>
-  <build_depend>tf2_ros</build_depend>
-  <build_depend>label_manager</build_depend>
-
-  <run_depend>actionlib_msgs</run_depend>
-  <run_depend>actionlib</run_depend>
-  <run_depend>genmsg</run_depend>
-  <run_depend>message_generation</run_depend>
-  <run_depend>message_runtime</run_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>sensor_msgs</run_depend>
-  <run_depend>geometry_msgs</run_depend>
-  <run_depend>mesh_msgs</run_depend>
-  <run_depend>dynamic_reconfigure</run_depend>
-  <run_depend>mbf_utility</run_depend>
-  <run_depend>tf2_ros</run_depend>
-  <run_depend>label_manager</run_depend>
+  <depend>actionlib_msgs</depend>
+  <depend>actionlib</depend>
+  <depend>genmsg</depend>
+  <depend>lvr2</depend>
+  <depend>message_generation</depend>
+  <depend>message_runtime</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>mesh_msgs</depend>
+  <depend>dynamic_reconfigure</depend>
+  <depend>tf2_ros</depend>
+  <depend>label_manager</depend>
 
   <buildtool_depend>catkin</buildtool_depend>
 
