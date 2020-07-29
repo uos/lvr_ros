@@ -86,6 +86,7 @@ target_link_libraries(${PROJECT_NAME}_conversions
   ${catkin_LIBRARIES}
   ${LVR2_LIBRARIES}
   ${OpenCV_LIBRARIES}
+  ${MPI_CXX_LIBRARIES}
 )
 
 add_executable(${PROJECT_NAME}_reconstruction
@@ -98,6 +99,7 @@ target_link_libraries(${PROJECT_NAME}_reconstruction
   ${catkin_LIBRARIES}
   ${LVR2_LIBRARIES}
   ${OpenCV_LIBRARIES}
+  ${MPI_CXX_LIBRARIES}
 )
 
 if(OPENCL_FOUND)
