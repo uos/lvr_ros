@@ -167,6 +167,7 @@ bool fromMeshBufferToMeshMessages(
 
     // Copy vertex tex coords
     auto buffer_texcoords = buffer->getTextureCoordinates();
+    if (buffer_texcoords)
     {
         mesh_materials.vertex_tex_coords.resize(n_vertices);
 
